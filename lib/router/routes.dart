@@ -7,9 +7,9 @@ class RoutesCenter {
 
   static void configureRoutes(Router router) {
     router.notFoundHandler = notFoundHandler;
-    // router.define('/', handler: launchRouteHandler);
+    router.define('/', handler: launchRouteHandler);
     // router.define('/', handler: loginRouteHandler);
-    router.define('/', handler: homeRouteHandler);
+    // router.define('/', handler: homeRouteHandler);
     router.define('/launch', handler: launchRouteHandler);
     router.define('/login', handler: loginRouteHandler);
     router.define('/home', handler: homeRouteHandler);

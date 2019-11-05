@@ -3,21 +3,25 @@ import '../../http_service/http_service.dart';
 import 'package:silence/router/routes.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class TabMineState extends State<TabMine> {
+class TabMineState extends State<TabMine> with WidgetsBindingObserver {
   int _uid;
   List<dynamic> _playlist;
 
   @override
   void initState() {
     super.initState();
-    // _initData();
+    _initData();
   }
 
-  Future _initData() async {
+  @override
+  dispose() {
+    super.dispose();
+  }
+
+  Future<Null> _initData() async {
     await _initUidFromPersist();
     final playlistResult = await _getPlaylist();
     List<dynamic> playlist = playlistResult.data['playlist'];
-    // _printWrapped(playlist.toString());
     setState(() {
       _playlist = playlist;
     });
@@ -31,8 +35,6 @@ class TabMineState extends State<TabMine> {
   }
 
   Future _getPlaylist() async {
-    // http.Response response = await http.get('$_host/user/playlist?uid=$_uid');
-    // List<dynamic> playlist = json.decode(response.body)['playlist'];
     var dio = await getDioInstance();
     var result = await dio.post('/user/playlist?uid=$_uid');
     return result;
@@ -72,29 +74,50 @@ class TabMineState extends State<TabMine> {
     return ListView(
       children: <Widget>[
         Column(
-          children: <Widget>[userSonglists, likedSonglists],
+          children: <Widget>[
+            buildListHeader(likedSonglists, listTitle: '我创建的歌单'),
+            buildListHeader(userSonglists, listTitle: '我的收藏'),
+          ],
         )
       ],
+      shrinkWrap: true,
     );
   }
 
   Widget buildSonglists({String listType}) {
     final computeSonglistsData = _computeSonglistsData(listType: listType);
     return ListView.builder(
+      physics: const NeverScrollableScrollPhysics(),
       itemCount: computeSonglistsData == null ? 0 : computeSonglistsData.length,
       itemBuilder: (BuildContext context, int index) {
         return ListTile(
-          leading: Text('leading'),
+          // leading: Text('leading'),
           title: Text(computeSonglistsData[index]['name'] ?? ''),
           onTap: () {
-            print(
-                '歌单<${computeSonglistsData[index]['name']}>被点击, 这是一个用户自己创建的歌单。');
             RoutesCenter.router.navigateTo(
                 context, '/songlist?id=${computeSonglistsData[index]['id']}');
           },
         );
       },
       shrinkWrap: true,
+    );
+  }
+
+  Widget buildListHeader(Widget list, {String listTitle}) {
+    return Container(
+      // padding: EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+      decoration: BoxDecoration(color: Colors.white),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Container(
+            child: Text(listTitle ?? '列表标题'),
+            decoration: BoxDecoration(color: Colors.grey[50]),
+            padding: EdgeInsets.only(top: 10, left: 20, bottom: 10),
+          ),
+          list
+        ],
+      ),
     );
   }
 }
