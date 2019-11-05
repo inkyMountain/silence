@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:fluro/fluro.dart';
 
 import './router/routes.dart';
-import './store/user_info.dart';
+import './store/store.dart';
 
 void main() {
   // SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.dark.copyWith(
@@ -12,7 +12,7 @@ void main() {
   // ));
   runApp(MultiProvider(
     providers: [
-      ChangeNotifierProvider(builder: (context) => UserInfo()),
+      ChangeNotifierProvider(builder: (context) => Store()),
     ],
     child: App(),
   ));

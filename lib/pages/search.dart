@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../store/user_info.dart';
+import '../store/store.dart';
 
 class SearchState extends State<Search> {
   final controller = TextEditingController();
@@ -31,7 +31,7 @@ class SearchState extends State<Search> {
           autofocus: true,
         ),
       ),
-      body: Consumer<UserInfo>(builder: (context, userInfo, child) {
+      body: Consumer<Store>(builder: (context, userInfo, child) {
         return Text("用户名: $userInfo");
       }),
     );

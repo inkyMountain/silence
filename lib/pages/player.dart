@@ -1,25 +1,28 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
-import '../http_service/http_service.dart';
+import 'package:silence/tools/audio_player.dart';
 
 class PlayerState extends State<Player> {
   String songId;
-  PlayerState({this.songId});
-  AudioPlayer player = AudioPlayer();
+  AudioPlayer player;
+
+  PlayerState({this.songId}) {
+  }
 
   @override
   void initState() {
     super.initState();
-    AudioPlayer.logEnabled = true;
-    play();
+    playAudio();
     // player.play('https://music.163.com/song/media/outer/url?id=$songId.mp3');
   }
 
-  void play() async {
+  Future<Null> playAudio() async {
+    if (player == null) {
+      player = await getPlayerInstance();
+      await player.setReleaseMode(ReleaseMode.STOP);
+    }
     final url = 'https://music.163.com/song/media/outer/url?id=$songId.mp3';
-    final result = await player.play(url);
-    print('Audio playing result:');
-    print(result);
+    await player.play(url);
   }
 
   @override

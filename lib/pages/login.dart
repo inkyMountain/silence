@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fluro/fluro.dart';
-import 'package:silence/http_service/http_service.dart';
+import 'package:silence/tools/http_service/http_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
 import 'package:silence/router/routes.dart';
-import 'package:silence/store/user_info.dart';
+import 'package:silence/store/store.dart';
 import 'package:provider/provider.dart';
 
 class LoginState extends State<Login> {
@@ -126,7 +126,7 @@ class LoginState extends State<Login> {
                               phone: accountController.text,
                               password: passwordController.text);
                           if (userInfo != null) {
-                            Provider.of<UserInfo>(context, listen: false)
+                            Provider.of<Store>(context, listen: false)
                                 .setUserInfo(userInfo);
                             RoutesCenter.router.navigateTo(context, '/home',
                                 transition: TransitionType.native,

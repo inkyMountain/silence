@@ -5,7 +5,7 @@ import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:path_provider/path_provider.dart';
 
-var dio;
+Dio dio;
 Future<Dio> getDioInstance() async {
   if (dio == null) {
     dio = Dio();
