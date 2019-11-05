@@ -1,8 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
-import 'package:layout/http_service/http_service.dart';
-import 'package:layout/router/routes.dart';
+import 'package:silence/http_service/http_service.dart';
+import 'package:silence/router/routes.dart';
 
 class SonglistState extends State<Songlist> {
   dynamic id;

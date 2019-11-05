@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:layout/http_service/http_service.dart';
+import 'package:flutter_statusbar_manager/flutter_statusbar_manager.dart';
+import 'package:silence/http_service/http_service.dart';
 import './profile_drawer.dart';
 
 import './tab_mine.dart';
@@ -11,8 +12,8 @@ class HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    // FlutterStatusbarManager.setColor(Colors.blue.withAlpha(0));
-    // FlutterStatusbarManager.setHidden(false);
+    FlutterStatusbarManager.setColor(Colors.blue.withAlpha(0));
+    FlutterStatusbarManager.setHidden(false);
     // refreshLoginStatus();
   }
 
