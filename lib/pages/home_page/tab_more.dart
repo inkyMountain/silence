@@ -9,7 +9,7 @@ class TabMoreState extends State<TabMore> {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Text('更多页面'),
+      child: Text('开发中✪ ω ✪'),
     );
   }
 }

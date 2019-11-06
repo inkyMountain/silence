@@ -6,6 +6,10 @@ import '../../tools/http_service/http_service.dart';
 class TabMineState extends State<TabMine> with WidgetsBindingObserver {
   int _uid;
   List<dynamic> _playlist;
+  Map<String, bool> _songlistFoldConfig = {
+    'userSonglist': false,
+    'likedSonglist': false,
+  };
 
   @override
   void initState() {
@@ -30,8 +34,6 @@ class TabMineState extends State<TabMine> with WidgetsBindingObserver {
   Future _initUidFromPersist() async {
     final preferences = await SharedPreferences.getInstance();
     _uid = preferences.getInt("uid");
-    print('获取uid');
-    print(_uid);
   }
 
   Future _getPlaylist() async {
@@ -51,9 +53,17 @@ class TabMineState extends State<TabMine> with WidgetsBindingObserver {
       return fallbackList;
     }
     return _playlist.where((value) {
-      return listType == 'liked'
-          ? value['creator']['userId'] != _uid
-          : value['creator']['userId'] == _uid;
+      switch (listType) {
+        case 'liked':
+          return !_songlistFoldConfig['likedSonglist'] &&
+              value['creator']['userId'] != _uid;
+          break;
+        case 'user':
+          return !_songlistFoldConfig['userSonglist'] &&
+              value['creator']['userId'] == _uid;
+          break;
+      }
+      return false;
     }).toList();
   }
 
@@ -75,8 +85,17 @@ class TabMineState extends State<TabMine> with WidgetsBindingObserver {
       children: <Widget>[
         Column(
           children: <Widget>[
-            buildListHeader(likedSonglists, listTitle: '我创建的歌单'),
-            buildListHeader(userSonglists, listTitle: '我的收藏'),
+            buildListHeader(likedSonglists, listTitle: '我创建的歌单',
+                onTapHeader: () {
+              _songlistFoldConfig['userSonglist'] =
+                  !_songlistFoldConfig['userSonglist'];
+              setState(() {});
+            }),
+            buildListHeader(userSonglists, listTitle: '我的收藏', onTapHeader: () {
+              _songlistFoldConfig['likedSonglist'] =
+                  !_songlistFoldConfig['likedSonglist'];
+              setState(() {});
+            }),
           ],
         )
       ],
@@ -91,8 +110,11 @@ class TabMineState extends State<TabMine> with WidgetsBindingObserver {
       itemCount: computeSonglistsData == null ? 0 : computeSonglistsData.length,
       itemBuilder: (BuildContext context, int index) {
         return ListTile(
-          // leading: Text('leading'),
-          title: Text(computeSonglistsData[index]['name'] ?? ''),
+          dense: true,
+          title: Text(
+            computeSonglistsData[index]['name'] ?? '',
+            style: TextStyle(fontSize: 15),
+          ),
           onTap: () {
             RoutesCenter.router.navigateTo(
                 context, '/songlist?id=${computeSonglistsData[index]['id']}');
@@ -103,20 +125,29 @@ class TabMineState extends State<TabMine> with WidgetsBindingObserver {
     );
   }
 
-  Widget buildListHeader(Widget list, {String listTitle}) {
-    return Container(
-      // padding: EdgeInsets.symmetric(vertical: 10, horizontal: 20),
-      decoration: BoxDecoration(color: Colors.white),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          Container(
-            child: Text(listTitle ?? '列表标题'),
-            decoration: BoxDecoration(color: Colors.grey[50]),
-            padding: EdgeInsets.only(top: 10, left: 20, bottom: 10),
-          ),
-          list
-        ],
+  Widget buildListHeader(Widget contentList,
+      {String listTitle, Function onTapHeader}) {
+    return FlatButton(
+      onPressed: onTapHeader ?? () {},
+      child: Container(
+        decoration: BoxDecoration(color: Colors.white),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Container(
+              child: Text(listTitle ?? '列表标题',
+                  style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold)),
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+              ),
+              padding: EdgeInsets.only(top: 15, left: 20, bottom: 15),
+            ),
+            contentList
+          ],
+        ),
       ),
     );
   }
