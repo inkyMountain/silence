@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:silence/router/routes.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -110,7 +111,6 @@ class TabMineState extends State<TabMine> with WidgetsBindingObserver {
       itemCount: computeSonglistsData == null ? 0 : computeSonglistsData.length,
       itemBuilder: (BuildContext context, int index) {
         return ListTile(
-          dense: true,
           title: Text(
             computeSonglistsData[index]['name'] ?? '',
             style: TextStyle(fontSize: 15),
@@ -127,27 +127,27 @@ class TabMineState extends State<TabMine> with WidgetsBindingObserver {
 
   Widget buildListHeader(Widget contentList,
       {String listTitle, Function onTapHeader}) {
-    return FlatButton(
-      onPressed: onTapHeader ?? () {},
-      child: Container(
-        decoration: BoxDecoration(color: Colors.white),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            Container(
-              child: Text(listTitle ?? '列表标题',
-                  style: TextStyle(
-                      color: Colors.black,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold)),
-              decoration: BoxDecoration(
-                color: Colors.grey[50],
-              ),
-              padding: EdgeInsets.only(top: 15, left: 20, bottom: 15),
+    return Container(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          FlatButton(
+            onPressed: () => onTapHeader(),
+            child: Row(
+              children: <Widget>[
+                Container(
+                  child: Text(listTitle ?? '列表标题',
+                      style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold)),
+                  padding: EdgeInsets.only(top: 15, left: 20, bottom: 15),
+                )
+              ],
             ),
-            contentList
-          ],
-        ),
+          ),
+          contentList
+        ],
       ),
     );
   }

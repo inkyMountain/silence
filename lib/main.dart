@@ -42,7 +42,6 @@ class AppState extends State<App> {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
           primaryColor: Colors.white,
-          primarySwatch: Colors.blue,
           brightness: Brightness.light,
           accentColor: Colors.blue[300]),
       // home: Launch(),

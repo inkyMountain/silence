@@ -50,7 +50,9 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
     return DefaultTabController(
       length: tabs.length,
       child: Scaffold(
+        backgroundColor: Colors.white,
           appBar: AppBar(
+            elevation: 0,
             centerTitle: true,
             title: tabBar,
             leading: Builder(builder: (BuildContext context) {
