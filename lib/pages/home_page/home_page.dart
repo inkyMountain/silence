@@ -43,20 +43,20 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
         .values
         .toList();
   }
-
-  @override
-  Widget build(BuildContext context) {
-    final tabBar = TabBar(
-      indicator: BoxDecoration(),
+  TabBar buildTabBar() {
+    return TabBar(
       labelStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-      unselectedLabelStyle:
-          TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+      unselectedLabelStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+      indicator: BoxDecoration(),
       unselectedLabelColor: Colors.grey,
       labelColor: Colors.black,
       controller: _tabController,
       tabs: buildTabs(),
     );
+  }
 
+  @override
+  Widget build(BuildContext context) {
     return DefaultTabController(
       length: tabs.length,
       child: Scaffold(
@@ -65,8 +65,8 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
             elevation: 0,
             centerTitle: true,
             title: Container(
-              child: tabBar,
-              padding: EdgeInsets.symmetric(horizontal: 15),
+              child: buildTabBar(),
+              // padding: EdgeInsets.symmetric(horizontal: 15),
             ),
             leading: Builder(builder: (BuildContext context) {
               return IconButton(

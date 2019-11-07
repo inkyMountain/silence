@@ -7,8 +7,8 @@ import 'package:silence/tools/http_service/http_service.dart';
 
 class SonglistState extends State<Songlist> {
   dynamic id;
-  Map<String, dynamic> _playlist = {};
-  var store;
+  Map<String, dynamic> _playlist;
+  Store store;
 
   SonglistState({this.id});
 
@@ -29,15 +29,23 @@ class SonglistState extends State<Songlist> {
 
   @override
   Widget build(BuildContext context) {
+    if (_playlist == null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(''),
+        ),
+        body: Center(child: Text('Loading')),
+      );
+    }
+
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text('歌单'),
+        elevation: 0,
+        title: Text(_playlist['playlist']['name']),
       ),
       body: Column(
         children: <Widget>[
-          _playlist.isEmpty
-              ? Text('')
-              : Text('歌单名称：${_playlist['playlist']['name']}'),
           Expanded(
             child: buildPlaylist(),
           ),
@@ -55,6 +63,7 @@ class SonglistState extends State<Songlist> {
       itemCount: playlist == null ? 0 : playlist['playlist']['tracks'].length,
       itemBuilder: (BuildContext context, int index) {
         return ListTile(
+          dense: true,
           leading: Text('leading'),
           title: Text(playlist['playlist']['tracks'][index]['name'] ?? ''),
           onTap: () {
