@@ -17,23 +17,21 @@ class LaunchState extends State<Launch> {
   init() async {
     final isLogin = await getLoginStatus();
     final preferences = await SharedPreferences.getInstance();
-    if (isLogin) {
-      await preferences.setInt('uid', 121643199);
-      RoutesCenter.router.navigateTo(context, '/home');
+    if (isLogin['code'] == 200) {
+      await preferences.setInt('uid', isLogin['profile']['userId']);
+      RoutesCenter.router.navigateTo(context, '/home', replace: true);
     } else {
-      final removeResult = await preferences.remove('uid');
-      print('remove result:');
-      print(removeResult);
-      RoutesCenter.router.navigateTo(context, '/login');
+      await preferences.remove('uid');
+      RoutesCenter.router.navigateTo(context, '/login', replace: true);
     }
   }
 
-  Future<bool> getLoginStatus() async {
+  Future<dynamic> getLoginStatus() async {
     var dio = await getDioInstance();
     var result = await dio.post('/login/status').catchError((error) {
       print(error.response);
     });
-    return result == null ? false : true;
+    return result.data;
   }
 
   @override

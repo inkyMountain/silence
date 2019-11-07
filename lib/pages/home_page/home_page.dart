@@ -40,7 +40,7 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
       indicator: BoxDecoration(),
       labelStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
       unselectedLabelStyle:
-          TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+          TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
       unselectedLabelColor: Colors.grey,
       labelColor: Colors.black,
       controller: _tabController,
@@ -54,7 +54,7 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
           appBar: AppBar(
             elevation: 0,
             centerTitle: true,
-            title: tabBar,
+            title: Container(child: tabBar, padding: EdgeInsets.symmetric(horizontal: 25),),
             leading: Builder(builder: (BuildContext context) {
               return IconButton(
                   icon: Icon(Icons.menu),
@@ -82,7 +82,7 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
     return tabs
         .asMap()
         .map((index, tabTitle) {
-          return MapEntry(index, Text(tabTitle));
+          return MapEntry(index, Tab(text: tabTitle));
         })
         .values
         .toList();
