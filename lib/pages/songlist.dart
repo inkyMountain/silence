@@ -1,11 +1,14 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:silence/router/routes.dart';
+import 'package:silence/store/store.dart';
 import 'package:silence/tools/http_service/http_service.dart';
 
 class SonglistState extends State<Songlist> {
   dynamic id;
   Map<String, dynamic> _playlist = {};
+  var store;
 
   SonglistState({this.id});
 
@@ -13,6 +16,7 @@ class SonglistState extends State<Songlist> {
   void initState() {
     super.initState();
     initData();
+    store = Provider.of<Store>(context, listen: false);
   }
 
   initData() async {
@@ -36,7 +40,7 @@ class SonglistState extends State<Songlist> {
               : Text('歌单名称：${_playlist['playlist']['name']}'),
           Expanded(
             child: buildPlaylist(),
-          )
+          ),
         ],
       ),
     );
@@ -54,13 +58,13 @@ class SonglistState extends State<Songlist> {
           leading: Text('leading'),
           title: Text(playlist['playlist']['tracks'][index]['name'] ?? ''),
           onTap: () {
-            print('${playlist['playlist']['trackIds'][index]['id']}');
+            store.setPlaylist(playlist['playlist']['tracks']);
+            store.setCurrenctPlayingSong(playlist['playlist']['tracks'][index]);
             final songId = playlist['playlist']['trackIds'][index]['id'];
             RoutesCenter.router.navigateTo(context, '/player?songId=$songId');
           },
         );
       },
-      // shrinkWrap: true,
     );
   }
 }

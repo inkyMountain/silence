@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:silence/tools/http_service/http_service.dart';
 import 'package:flutter_statusbar_manager/flutter_statusbar_manager.dart';
@@ -27,11 +28,12 @@ class LaunchState extends State<Launch> {
   }
 
   Future<dynamic> getLoginStatus() async {
-    var dio = await getDioInstance();
-    var result = await dio.post('/login/status').catchError((error) {
-      print(error.response);
+    Dio dio = await getDioInstance();
+    var errorMessage;
+    var loginStatus = await dio.post('/login/status').catchError((error) {
+      errorMessage = error.response.data;
     });
-    return result.data;
+    return loginStatus == null? errorMessage: loginStatus.data;
   }
 
   @override

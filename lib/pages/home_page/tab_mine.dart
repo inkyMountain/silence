@@ -1,7 +1,9 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:silence/router/routes.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:silence/store/store.dart';
 import '../../tools/http_service/http_service.dart';
 
 class TabMineState extends State<TabMine> with WidgetsBindingObserver {
@@ -53,15 +55,15 @@ class TabMineState extends State<TabMine> with WidgetsBindingObserver {
       fallbackList.add(Map());
       return fallbackList;
     }
-    return _playlist.where((value) {
+    return _playlist.where((song) {
       switch (listType) {
         case 'liked':
           return !_songlistFoldConfig['likedSonglist'] &&
-              value['creator']['userId'] != _uid;
+              song['creator']['userId'] != _uid;
           break;
         case 'user':
           return !_songlistFoldConfig['userSonglist'] &&
-              value['creator']['userId'] == _uid;
+              song['creator']['userId'] == _uid;
           break;
       }
       return false;
@@ -86,13 +88,17 @@ class TabMineState extends State<TabMine> with WidgetsBindingObserver {
       children: <Widget>[
         Column(
           children: <Widget>[
-            buildListHeader(likedSonglists, listTitle: '我创建的歌单',
-                onTapHeader: () {
+            buildListHeader(likedSonglists,
+                listTitle: '我创建的歌单',
+                isFolded: _songlistFoldConfig['userSonglist'], onTapHeader: () {
               _songlistFoldConfig['userSonglist'] =
                   !_songlistFoldConfig['userSonglist'];
               setState(() {});
             }),
-            buildListHeader(userSonglists, listTitle: '我的收藏', onTapHeader: () {
+            buildListHeader(userSonglists,
+                listTitle: '我的收藏',
+                isFolded: _songlistFoldConfig['likedSonglist'],
+                onTapHeader: () {
               _songlistFoldConfig['likedSonglist'] =
                   !_songlistFoldConfig['likedSonglist'];
               setState(() {});
@@ -126,26 +132,34 @@ class TabMineState extends State<TabMine> with WidgetsBindingObserver {
   }
 
   Widget buildListHeader(Widget contentList,
-      {String listTitle, Function onTapHeader}) {
+      {String listTitle, Function onTapHeader, bool isFolded = false}) {
+    final blackBorderSide = BorderSide(color: Color(0xffababab), width: 5);
     return Container(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           FlatButton(
-            onPressed: () => onTapHeader(),
-            child: Row(
-              children: <Widget>[
-                Container(
-                  child: Text(listTitle ?? '列表标题',
-                      style: TextStyle(
-                          color: Colors.black,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold)),
-                  padding: EdgeInsets.only(top: 15, left: 20, bottom: 15),
-                )
-              ],
-            ),
-          ),
+              onPressed: onTapHeader,
+              padding: EdgeInsets.all(0),
+              child: Row(
+                children: <Widget>[
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                          color:
+                              isFolded ? Color(0xffe0dfdf) : Color(0xfff5f5f5),
+                          border:
+                              isFolded ? Border(left: blackBorderSide) : null),
+                      child: Text(listTitle ?? '列表标题',
+                          style: TextStyle(
+                              color: Colors.black,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold)),
+                      padding: EdgeInsets.only(top: 15, left: 20, bottom: 15),
+                    ),
+                  )
+                ],
+              )),
           contentList
         ],
       ),

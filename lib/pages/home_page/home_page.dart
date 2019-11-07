@@ -34,13 +34,23 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
     dio.post('/login/refresh');
   }
 
+  List<Widget> buildTabs() {
+    return tabs
+        .asMap()
+        .map((index, tabTitle) {
+          return MapEntry(index, Tab(text: tabTitle));
+        })
+        .values
+        .toList();
+  }
+
   @override
   Widget build(BuildContext context) {
-    var tabBar = TabBar(
+    final tabBar = TabBar(
       indicator: BoxDecoration(),
-      labelStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+      labelStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
       unselectedLabelStyle:
-          TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
       unselectedLabelColor: Colors.grey,
       labelColor: Colors.black,
       controller: _tabController,
@@ -50,11 +60,14 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
     return DefaultTabController(
       length: tabs.length,
       child: Scaffold(
-        backgroundColor: Colors.white,
+          backgroundColor: Colors.white,
           appBar: AppBar(
             elevation: 0,
             centerTitle: true,
-            title: Container(child: tabBar, padding: EdgeInsets.symmetric(horizontal: 25),),
+            title: Container(
+              child: tabBar,
+              padding: EdgeInsets.symmetric(horizontal: 15),
+            ),
             leading: Builder(builder: (BuildContext context) {
               return IconButton(
                   icon: Icon(Icons.menu),
@@ -76,16 +89,6 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
           ),
           drawer: ProfileDrawer()),
     );
-  }
-
-  List<Widget> buildTabs() {
-    return tabs
-        .asMap()
-        .map((index, tabTitle) {
-          return MapEntry(index, Tab(text: tabTitle));
-        })
-        .values
-        .toList();
   }
 }
 
