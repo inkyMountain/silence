@@ -67,7 +67,8 @@ class SonglistState extends State<Songlist> {
           leading: Text('leading'),
           title: Text(playlist['playlist']['tracks'][index]['name'] ?? ''),
           onTap: () {
-            store.setPlaylist(playlist['playlist']['tracks']);
+            store.setPlaylist(playlist);
+            // store.setPlaylist(playlist['playlist']['tracks']);
             store.setCurrenctPlayingSong(playlist['playlist']['tracks'][index]);
             final songId = playlist['playlist']['trackIds'][index]['id'];
             RoutesCenter.router.navigateTo(context, '/player?songId=$songId');
