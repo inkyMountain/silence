@@ -1,28 +1,30 @@
 import 'package:flutter/material.dart';
 
 class Store with ChangeNotifier {
-  Map<String, dynamic> _userInfo;
-  List<dynamic> _playlist;
   Map<String, dynamic> _currentPlayingSong;
+  Map<String, dynamic> _songlists;
+  Map<String, dynamic> _playlist;
+  Map<String, dynamic> _userInfo;
 
-  get userInfo {
-    return _userInfo;
-  }
+  get currenctPlayingSong => _currentPlayingSong;
 
-  get playlist {
-    return _playlist;
-  }
+  get songlists => _songlists;
 
-  get currenctPlayingSong {
-    return _currentPlayingSong;
-  }
+  get playlist => _playlist;
+
+  get userInfo => _userInfo;
 
   void setUserInfo(Map<String, dynamic> userInfo) {
     _userInfo = userInfo;
     notifyListeners();
   }
 
-  void setPlaylist(List<dynamic> playlist) {
+  void setSonglists(Map<String, dynamic> songlists) {
+    _songlists = songlists;
+    notifyListeners();
+  }
+
+  void setPlaylist(Map<String, dynamic> playlist) {
     _playlist = playlist;
     notifyListeners();
   }

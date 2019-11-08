@@ -1,4 +1,4 @@
-import 'package:flutter/gestures.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:silence/router/routes.dart';
@@ -7,12 +7,18 @@ import 'package:silence/store/store.dart';
 import '../../tools/http_service/http_service.dart';
 
 class TabMineState extends State<TabMine> with WidgetsBindingObserver {
-  int _uid;
-  List<dynamic> _playlist;
+  List<dynamic> _songlists;
   Map<String, bool> _songlistFoldConfig = {
     'userSonglist': false,
     'likedSonglist': false,
   };
+
+  int _uid;
+
+  @override
+  dispose() {
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -20,29 +26,32 @@ class TabMineState extends State<TabMine> with WidgetsBindingObserver {
     _initData();
   }
 
-  @override
-  dispose() {
-    super.dispose();
-  }
-
   Future<Null> _initData() async {
     await _initUidFromPersist();
-    final playlistResult = await _getPlaylist();
-    List<dynamic> playlist = playlistResult.data['playlist'];
+    final songlistsInStore = Provider.of<Store>(context).songlists;
+    List<dynamic> songlists;
+    // 优先使用store中的数据
+    if (songlistsInStore != null) {
+      songlists = songlistsInStore['playlist'];
+    } else {
+      final songlistsResponse = await _getSonglists();
+      songlists = songlistsResponse.data['playlist'];
+    }
     setState(() {
-      _playlist = playlist;
+      _songlists = songlists;
     });
   }
 
-  Future _initUidFromPersist() async {
+  Future<void> _initUidFromPersist() async {
     final preferences = await SharedPreferences.getInstance();
     _uid = preferences.getInt("uid");
   }
 
-  Future _getPlaylist() async {
-    var dio = await getDioInstance();
-    var result = await dio.post('/user/playlist?uid=$_uid');
-    return result;
+  Future<Response> _getSonglists() async {
+    Dio dio = await getDioInstance();
+    Response songlists = await dio.post('/user/playlist?uid=$_uid');
+    Provider.of<Store>(context).setSonglists(songlists.data);
+    return songlists;
   }
 
   List<dynamic> _computeSonglistsData({String listType}) {
@@ -50,12 +59,12 @@ class TabMineState extends State<TabMine> with WidgetsBindingObserver {
      * listType == 'liked'  用户收藏歌单
      * listType == 'user'   用户自创建歌单
      */
-    if (_playlist == null) {
+    if (_songlists == null) {
       final fallbackList = List();
       fallbackList.add(Map());
       return fallbackList;
     }
-    return _playlist.where((song) {
+    return _songlists.where((song) {
       switch (listType) {
         case 'liked':
           return !_songlistFoldConfig['likedSonglist'] &&
@@ -69,11 +78,6 @@ class TabMineState extends State<TabMine> with WidgetsBindingObserver {
       return false;
     }).toList();
   }
-
-  // void _printWrapped(String text) {
-  //   final pattern = new RegExp('.{1,800}');
-  //   pattern.allMatches(text).forEach((match) => print(match.group(0)));
-  // }
 
   Widget buildSonglists({String listType}) {
     final computeSonglistsData = _computeSonglistsData(listType: listType);

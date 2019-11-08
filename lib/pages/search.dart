@@ -3,36 +3,40 @@ import 'package:provider/provider.dart';
 import '../store/store.dart';
 
 class SearchState extends State<Search> {
-  final controller = TextEditingController();
+  String bodyContent = 'Default Text';
   final searchFormKey = GlobalKey();
-  var bodyContent = 'Default Text';
+  final searchTextController = TextEditingController();
+
+  @override
+  void dispose() {
+    searchTextController.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
     super.initState();
-    // controller.addListener(() {
-    //   print('${controller.text}');
+    // searchTextController.addListener(() {
+    //   print('${searchTextController.text}');
     // });
-  }
-
-  @override
-  void dispose() {
-    controller.dispose();
-    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: TextField(
-          key: searchFormKey,
-          controller: controller,
-          autofocus: true,
-        ),
-      ),
+      backgroundColor: Colors.white,
       body: Consumer<Store>(builder: (context, userInfo, child) {
-        return Text("用户名: $userInfo");
+        return Stack(
+          children: <Widget>[
+            AppBar(
+                elevation: 0,
+                title: TextField(
+                  key: searchFormKey,
+                  controller: searchTextController,
+                  autofocus: true,
+                )),
+          ],
+        );
       }),
     );
   }
