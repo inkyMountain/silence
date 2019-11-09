@@ -4,7 +4,7 @@ AudioPlayer player;
 
 getPlayerInstance() async {
   if (player == null) {
-    AudioPlayer.logEnabled = true;
+    // AudioPlayer.logEnabled = true;
     player = new AudioPlayer();
     await player.setReleaseMode(ReleaseMode.STOP);
   }

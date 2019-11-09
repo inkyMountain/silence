@@ -1,19 +1,17 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:silence/store/play_center.dart';
 import 'package:silence/store/store.dart';
-import 'package:silence/tools/audio_player.dart';
 
 class PlayerState extends State<Player> {
-  String songId;
-  AudioPlayer player;
+  String _songId;
 
   // 播放状态
   Duration _duration;
   Duration _position;
-  AudioPlayerState _playerState;
 
-  PlayerState({this.songId});
+  PlayerState(this._songId);
 
   @override
   void initState() {
@@ -23,46 +21,18 @@ class PlayerState extends State<Player> {
 
   void initPage() async {
     await playAudio();
-    addPlayerListeners();
-  }
-
-  void addPlayerListeners() {
-    player.onDurationChanged.listen((Duration duration) {
-      print('Max duration: $duration');
-      setState(() => _duration = duration);
-    });
-    player.onAudioPositionChanged.listen((Duration position) {
-      print('Current position: $position');
-      setState(() => _position = position);
-    });
-    player.onPlayerStateChanged.listen((AudioPlayerState state) {
-      print('Current player state: $state');
-      setState(() => _playerState = state);
-    });
-    player.onPlayerCompletion.listen((event) {
-      print('music play complete');
-      setState(() => _position = _duration);
-    });
-    player.onPlayerError.listen((error) {
-      print('audioPlayer error : $error');
-      setState(() {
-        _playerState = AudioPlayerState.STOPPED;
-        _duration = Duration(seconds: 0);
-        _position = Duration(seconds: 0);
-      });
-    });
   }
 
   Future<Null> playAudio() async {
-    if (player == null) {
-      player = await getPlayerInstance();
-      await player.setReleaseMode(ReleaseMode.STOP);
-    }
-    final url = 'https://music.163.com/song/media/outer/url?id=$songId.mp3';
-    await player.play(url);
-    setState(() {
-      _playerState = AudioPlayerState.PLAYING;
-    });
+    await Provider.of<PlayCenter>(context, listen: false).play(_songId);
+  }
+
+  Future<Null> pause() async {
+    await Provider.of<PlayCenter>(context).pause();
+  }
+
+  Future<Null> resume() async {
+    await Provider.of<PlayCenter>(context).resume();
   }
 
   // store.currenctPlayingSong['name']  当前播放的歌曲
@@ -72,22 +42,40 @@ class PlayerState extends State<Player> {
     return Scaffold(
         body: Stack(
       children: <Widget>[
-        Center(child: Consumer<Store>(builder: (context, store, child) {
-          return Text("${store.currenctPlayingSong['name']}");
+        Center(
+            child: Consumer<PlayCenter>(builder: (context, playCenter, child) {
+          return Text("${playCenter.currenctPlayingSong['name']}");
         })),
         Container(
-          padding: EdgeInsets.all(40),
-          child: IconButton(
-            icon: Icon(_playerState == AudioPlayerState.PLAYING
-                ? Icons.pause
-                : Icons.play_arrow),
-            onPressed: () {
-              _playerState == AudioPlayerState.PLAYING
-                  ? player.pause()
-                  : player.resume();
-            },
-          ),
-        )
+            padding: EdgeInsets.all(40),
+            child: Column(
+              children: <Widget>[
+                IconButton(
+                  icon: Icon(Provider.of<PlayCenter>(context).playerState ==
+                          AudioPlayerState.PLAYING
+                      ? Icons.pause
+                      : Icons.play_arrow),
+                  onPressed: () {
+                    Provider.of<PlayCenter>(context).playerState ==
+                            AudioPlayerState.PLAYING
+                        ? pause()
+                        : resume();
+                  },
+                ),
+                IconButton(
+                  icon: Icon(Icons.arrow_back),
+                  onPressed: () {
+                    Provider.of<PlayCenter>(context, listen: false).previous();
+                  },
+                ),
+                IconButton(
+                  icon: Icon(Icons.arrow_forward),
+                  onPressed: () {
+                    Provider.of<PlayCenter>(context, listen: false).next();
+                  },
+                ),
+              ],
+            )),
       ],
     ));
   }
@@ -98,5 +86,5 @@ class Player extends StatefulWidget {
   Player({this.songId});
 
   @override
-  State<StatefulWidget> createState() => PlayerState(songId: songId);
+  State<StatefulWidget> createState() => PlayerState(songId);
 }

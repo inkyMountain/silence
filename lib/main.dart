@@ -5,6 +5,7 @@ import 'package:fluro/fluro.dart';
 
 import './router/routes.dart';
 import './store/store.dart';
+import './store/play_center.dart';
 
 void main() {
   // SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.dark.copyWith(
@@ -13,6 +14,7 @@ void main() {
   runApp(MultiProvider(
     providers: [
       ChangeNotifierProvider(builder: (context) => Store()),
+      ChangeNotifierProvider(builder: (context) => PlayCenter()),
     ],
     child: App(),
   ));

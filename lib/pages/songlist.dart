@@ -2,13 +2,14 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:silence/router/routes.dart';
+import 'package:silence/store/play_center.dart';
 import 'package:silence/store/store.dart';
 import 'package:silence/tools/http_service/http_service.dart';
 
 class SonglistState extends State<Songlist> {
   dynamic id;
   Map<String, dynamic> _playlist;
-  Store store;
+  PlayCenter playCenter;
 
   SonglistState({this.id});
 
@@ -16,7 +17,7 @@ class SonglistState extends State<Songlist> {
   void initState() {
     super.initState();
     initData();
-    store = Provider.of<Store>(context, listen: false);
+    playCenter = Provider.of<PlayCenter>(context, listen: false);
   }
 
   initData() async {
@@ -67,10 +68,9 @@ class SonglistState extends State<Songlist> {
           leading: Text('leading'),
           title: Text(playlist['playlist']['tracks'][index]['name'] ?? ''),
           onTap: () {
-            store.setPlaylist(playlist);
-            // store.setPlaylist(playlist['playlist']['tracks']);
-            store.setCurrenctPlayingSong(playlist['playlist']['tracks'][index]);
-            final songId = playlist['playlist']['trackIds'][index]['id'];
+            playCenter.setPlaylist(playlist);
+            playCenter.setCurrenctPlayingSong(playlist['playlist']['tracks'][index]);
+            final songId = playlist['playlist']['tracks'][index]['id'];
             RoutesCenter.router.navigateTo(context, '/player?songId=$songId');
           },
         );

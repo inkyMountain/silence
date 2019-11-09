@@ -82,6 +82,7 @@ class TabMineState extends State<TabMine> with WidgetsBindingObserver {
   Widget buildSonglists({String listType}) {
     final computeSonglistsData = _computeSonglistsData(listType: listType);
     return ListView.builder(
+      padding: EdgeInsets.all(0),
       physics: const NeverScrollableScrollPhysics(),
       itemCount: computeSonglistsData == null ? 0 : computeSonglistsData.length,
       itemBuilder: (BuildContext context, int index) {
@@ -117,7 +118,7 @@ class TabMineState extends State<TabMine> with WidgetsBindingObserver {
                   Expanded(
                     child: Container(
                       padding:
-                          EdgeInsets.symmetric(vertical: 15, horizontal: 35),
+                          EdgeInsets.symmetric(vertical: 15, horizontal: 32),
                       decoration: BoxDecoration(
                           color:
                               isFolded ? Color(0xffe0dfdf) : Color(0xfff5f5f5),
