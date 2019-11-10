@@ -1,14 +1,12 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-// import 'package:audioplayers/audioplayers.dart';
 import 'package:audioplayer/audioplayer.dart';
-// import 'package:audioplayer/audioplayer.dart' as OriginalAudioPlayer;
-import 'package:dio/dio.dart' as DioPrefix;
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart';
+import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
-// import 'package:silence/tools/audio_player.dart';
 import 'package:silence/tools/http_service/http_service.dart';
 
 class PlayCenter with ChangeNotifier {
@@ -16,16 +14,29 @@ class PlayCenter with ChangeNotifier {
   Duration duration;
   Duration position;
   AudioPlayerState playerState;
-  DioPrefix.Dio _dio;
+  Dio _dio;
   bool _hasInitialized = false;
 
   Map<dynamic, dynamic> _currentPlayingSong;
   Map<dynamic, dynamic> _currentPlayingSongUrl;
+  int _currentSongIndex;
+  StreamSubscription _positionSubscription;
+  StreamSubscription _audioPlayerStateSubscription;
+  String _songUrl;
   Map<dynamic, dynamic> _playlist;
   Directory _appDocDir;
 
   get currenctPlayingSong => _currentPlayingSong;
   get playlist => _playlist;
+  get currentSongIndex => _currentSongIndex;
+
+  @override
+  void dispose() {
+    super.dispose();
+    _positionSubscription.cancel();
+    _audioPlayerStateSubscription.cancel();
+    player.stop();
+  }
 
   void setPlaylist(Map<dynamic, dynamic> playlist) {
     _playlist = playlist;
@@ -39,44 +50,49 @@ class PlayCenter with ChangeNotifier {
 
   initPlayer() async {
     // player = await getPlayerInstance();
+    _currentSongIndex = getSongIndex(_currentPlayingSong['id'].toString());
     player = AudioPlayer();
+    _dio = await getDioInstance();
     // await player.setReleaseMode(ReleaseMode.STOP);
-    addPlayerListeners();
+    _addPlayerListeners();
     _appDocDir = await getExternalStorageDirectory();
   }
 
-  void addPlayerListeners() {
-    // player.onDurationChanged.listen((Duration duration) {
-    //   // print('Max duration: $duration');
-    //   this.duration = duration;
-    //   notifyListeners();
-    // });
+  void _addPlayerListeners() {
     player.onAudioPositionChanged.listen((Duration position) {
       this.position = position;
       notifyListeners();
     });
-    player.onPlayerStateChanged.listen((AudioPlayerState state) {
-      playerState = state;
+
+    _positionSubscription = player.onAudioPositionChanged
+        .listen((position) => () => this.position = position);
+
+    final onPlayError = (msg) {
+      playerState = AudioPlayerState.STOPPED;
+      duration = new Duration(seconds: 0);
+      position = new Duration(seconds: 0);
+      next();
       notifyListeners();
-    });
-    // player.onPlayerCompletion.listen((event) {
-    //   next();
-    //   notifyListeners();
-    // });
-    // player.onPlayerError.listen((error) {
-    //   playerState = AudioPlayerState.STOPPED;
-    //   duration = Duration(seconds: 0);
-    //   position = Duration(seconds: 0);
-    //   next();
-    //   notifyListeners();
-    // });
+    };
+
+    _audioPlayerStateSubscription = player.onPlayerStateChanged.listen((state) {
+      playerState = state;
+      if (state == AudioPlayerState.PLAYING) {
+        this.duration = player.duration;
+      } else if (state == AudioPlayerState.COMPLETED) {
+        next();
+        this.position = duration;
+      }
+      notifyListeners();
+    }, onError: onPlayError);
   }
 
+  // 播放优先: 缓存 > 在线
   Future<Null> play(String songId) async {
     if (!_hasInitialized) await initPlayer();
     await player.stop();
-    _dio = await getDioInstance();
     playerState = AudioPlayerState.PLAYING;
+
     final cacheRecordFile = new File('${_appDocDir.path}/cache_record.json');
     if (!await cacheRecordFile.exists()) {
       await cacheRecordFile.create();
@@ -85,21 +101,37 @@ class PlayCenter with ChangeNotifier {
     cacheRecord = cacheRecord == '' ? '{}' : cacheRecord;
     final suffixList = json.decode(cacheRecord)[songId] ?? [];
     if (!suffixList.isEmpty) {
-      player.play('${_appDocDir.path}/$songId.${suffixList[0]}', isLocal: true);
-      return;
+      final escapedFileName = _currentPlayingSong['name'].replaceAll('/', '|');
+      final songFilePath =
+          '${_appDocDir.path}/$escapedFileName.${suffixList[0]}';
+      final songFile = new File(songFilePath);
+      final isFileExsits = await songFile.exists();
+      if (isFileExsits) {
+        player.play(songFilePath, isLocal: true);
+        // notifyListeners();
+        return;
+      }
     }
-    DioPrefix.Response songUrlResponse = await dio.get('/song/url?id=$songId');
+
+    final bitRate = 320000;
+    Response songUrlResponse =
+        await dio.get('/song/url?id=$songId&br=$bitRate');
     _currentPlayingSongUrl = songUrlResponse.data;
     final url = songUrlResponse.data['data'][0]['url'];
+    _songUrl = url;
     await player.play(url);
     _cacheCurrentSong(url);
+
+    notifyListeners();
   }
 
   Future<Null> _cacheCurrentSong(String url) async {
-    final songBytes = await readBytes(url);
+    final songBytes = await http.readBytes(url);
     final songId = _currentPlayingSongUrl['data'][0]['id'];
     final songSuffix = _currentPlayingSongUrl['data'][0]['type'];
-    final songFile = new File('${_appDocDir.path}/$songId.$songSuffix');
+    final escapedFileName = _currentPlayingSong['name'].replaceAll('/', '|');
+    final songFile =
+        new File('${_appDocDir.path}/$escapedFileName.$songSuffix');
     await songFile.writeAsBytes(songBytes);
     final cacheRecordFile = new File('${_appDocDir.path}/cache_record.json');
     dynamic cacheRecord = await cacheRecordFile.readAsString();
@@ -120,13 +152,13 @@ class PlayCenter with ChangeNotifier {
   }
 
   Future<Null> resume() async {
-    // await player.resume();
+    await player.play(_songUrl);
     playerState = AudioPlayerState.PLAYING;
     notifyListeners();
   }
 
   previous() {
-    final currentSongIndex = getCurrentSongIndex();
+    final currentSongIndex = getSongIndex(_currentPlayingSong['id'].toString());
     final previousSongIndex = currentSongIndex == 0
         ? _playlist['playlist']['tracks'].length - 1
         : currentSongIndex - 1;
@@ -135,7 +167,7 @@ class PlayCenter with ChangeNotifier {
   }
 
   next() {
-    final currentSongIndex = getCurrentSongIndex();
+    final currentSongIndex = getSongIndex(_currentPlayingSong['id'].toString());
     final nextSongIndex =
         currentSongIndex == _playlist['playlist']['tracks'].length - 1
             ? 0
@@ -144,15 +176,16 @@ class PlayCenter with ChangeNotifier {
     play(_playlist['playlist']['tracks'][nextSongIndex]['id'].toString());
   }
 
-  int getCurrentSongIndex() {
+  int getSongIndex(String songId) {
     int currentSongIndex;
     Map<dynamic, dynamic> tracksMap = _playlist['playlist']['tracks'].asMap();
     tracksMap.map((index, song) {
-      if (song == _currentPlayingSong) {
+      if (song['id'].toString() == songId) {
         currentSongIndex = index;
       }
       return MapEntry(index, song);
     });
+    _currentSongIndex = currentSongIndex;
     return currentSongIndex;
   }
 }

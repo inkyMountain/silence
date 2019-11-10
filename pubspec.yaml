@@ -30,6 +30,7 @@ dependencies:
   percent_indicator: "^2.1.1"
   cupertino_icons: ^0.1.2
   flutter_statusbar_manager : ^1.0.2
+  indexed_list_view: ^1.0.8
   flutter:
     sdk: flutter
 

@@ -1,15 +1,14 @@
-import 'package:audioplayers/audioplayers.dart';
+import 'package:audioplayer/audioplayer.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:provider/provider.dart';
 import 'package:silence/store/play_center.dart';
-import 'package:silence/store/store.dart';
+// import 'package:indexed_list_view/indexed_list_view.dart';
 
 class PlayerState extends State<Player> {
   String _songId;
-
-  // 播放状态
-  Duration _duration;
-  Duration _position;
+  final _scrollController = ScrollController();
+  GlobalKey _listTileKey = GlobalKey();
 
   PlayerState(this._songId);
 
@@ -19,6 +18,14 @@ class PlayerState extends State<Player> {
     initPage();
   }
 
+  jumpIndex(int index) {
+    final RenderBox containerRenderBox =
+        _listTileKey.currentContext.findRenderObject();
+    final tileContainerHeight = containerRenderBox.size.height;
+    _scrollController.jumpTo(tileContainerHeight * index);
+  }
+
+  // 不可以缩减成一个方法，因为initState不允许加上async修饰符。
   void initPage() async {
     await playAudio();
   }
@@ -35,6 +42,47 @@ class PlayerState extends State<Player> {
     await Provider.of<PlayCenter>(context).resume();
   }
 
+  Function buildPlayingList() {
+    print('===================================重新build');
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      final currentSongIndex =
+          Provider.of<PlayCenter>(context).currentSongIndex;
+      jumpIndex(currentSongIndex);
+    });
+    final tracks =
+        Provider.of<PlayCenter>(context).playlist['playlist']['tracks'];
+    return (context) => Container(
+        height: 600,
+        child: Column(children: <Widget>[
+          Expanded(
+              child: Scrollbar(
+                  child: ListView.builder(
+                      controller: _scrollController,
+                      itemCount: tracks.length,
+                      itemBuilder: (BuildContext context, int index) {
+                        return ListTile(
+                          key: index == 0 ? _listTileKey : null,
+                          // dense: true,
+                          title: Text(
+                            tracks[index]['name'],
+                            style: TextStyle(
+                                color: Provider.of<PlayCenter>(context)
+                                            .currenctPlayingSong['id'] ==
+                                        tracks[index]['id']
+                                    ? Colors.blue
+                                    : Colors.black),
+                          ),
+                          onTap: () {
+                            Provider.of<PlayCenter>(context)
+                                .setCurrenctPlayingSong(tracks[index]);
+                            Provider.of<PlayCenter>(context)
+                                .play(tracks[index]['id'].toString());
+                          },
+                        );
+                      })))
+        ]));
+  }
+
   // store.currenctPlayingSong['name']  当前播放的歌曲
   // store.playlist  播放列表
   @override
@@ -43,9 +91,8 @@ class PlayerState extends State<Player> {
         body: Stack(
       children: <Widget>[
         Center(
-            child: Consumer<PlayCenter>(builder: (context, playCenter, child) {
-          return Text("${playCenter.currenctPlayingSong['name']}");
-        })),
+            child: Text(
+                "${Provider.of<PlayCenter>(context).currenctPlayingSong['name']}")),
         Container(
             padding: EdgeInsets.all(40),
             child: Column(
@@ -64,16 +111,19 @@ class PlayerState extends State<Player> {
                 ),
                 IconButton(
                   icon: Icon(Icons.arrow_back),
-                  onPressed: () {
-                    Provider.of<PlayCenter>(context, listen: false).previous();
-                  },
+                  onPressed: () =>
+                      Provider.of<PlayCenter>(context, listen: false)
+                          .previous(),
                 ),
                 IconButton(
                   icon: Icon(Icons.arrow_forward),
-                  onPressed: () {
-                    Provider.of<PlayCenter>(context, listen: false).next();
-                  },
+                  onPressed: () =>
+                      Provider.of<PlayCenter>(context, listen: false).next(),
                 ),
+                IconButton(
+                    icon: Icon(Icons.menu),
+                    onPressed: () => showModalBottomSheet(
+                        context: context, builder: buildPlayingList()))
               ],
             )),
       ],
