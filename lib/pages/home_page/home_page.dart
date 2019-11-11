@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_statusbar_manager/flutter_statusbar_manager.dart';
 import 'package:silence/tools/http_service/http_service.dart';
+import 'package:silence/widgets/bottomStateBar.dart';
 import './profile_drawer.dart';
 
 import './tab_mine.dart';
@@ -43,10 +44,12 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
         .values
         .toList();
   }
+
   TabBar buildTabBar() {
     return TabBar(
       labelStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-      unselectedLabelStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+      unselectedLabelStyle:
+          TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
       indicator: BoxDecoration(),
       unselectedLabelColor: Colors.grey,
       labelColor: Colors.black,
@@ -60,34 +63,46 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
     return DefaultTabController(
       length: tabs.length,
       child: Scaffold(
-          backgroundColor: Colors.white,
-          appBar: AppBar(
-            elevation: 0,
-            centerTitle: true,
-            title: Container(
-              child: buildTabBar(),
-              // padding: EdgeInsets.symmetric(horizontal: 15),
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          elevation: 0,
+          centerTitle: true,
+          title: Container(
+            child: buildTabBar(),
+            // padding: EdgeInsets.symmetric(horizontal: 15),
+          ),
+          leading: Builder(builder: (BuildContext context) {
+            return IconButton(
+                icon: Icon(Icons.menu),
+                onPressed: () => Scaffold.of(context).openDrawer());
+          }),
+          actions: <Widget>[
+            IconButton(
+                icon: Icon(Icons.search),
+                onPressed: () => Navigator.pushNamed(context, '/search'))
+          ],
+        ),
+        body: Stack(
+          children: <Widget>[
+            TabBarView(
+              controller: _tabController,
+              children: [
+                TabMine(),
+                TabFind(),
+                TabMore(),
+              ],
             ),
-            leading: Builder(builder: (BuildContext context) {
-              return IconButton(
-                  icon: Icon(Icons.menu),
-                  onPressed: () => Scaffold.of(context).openDrawer());
-            }),
-            actions: <Widget>[
-              IconButton(
-                  icon: Icon(Icons.search),
-                  onPressed: () => Navigator.pushNamed(context, '/search'))
-            ],
-          ),
-          body: TabBarView(
-            controller: _tabController,
-            children: [
-              TabMine(),
-              TabFind(),
-              TabMore(),
-            ],
-          ),
-          drawer: ProfileDrawer()),
+            Positioned(
+              child: buildBottomStateBar(context),
+              bottom: 0,
+              left: 0,
+              right: 0,
+            )
+          ],
+        ),
+        drawer: ProfileDrawer(),
+        // persistentFooterButtons: buildBottomStateBar(context),
+      ),
     );
   }
 }

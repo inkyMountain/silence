@@ -5,6 +5,7 @@ import 'package:silence/router/routes.dart';
 import 'package:silence/store/play_center.dart';
 import 'package:silence/store/store.dart';
 import 'package:silence/tools/http_service/http_service.dart';
+import 'package:silence/widgets/bottomStateBar.dart';
 
 class SonglistState extends State<Songlist> {
   dynamic id;
@@ -35,7 +36,9 @@ class SonglistState extends State<Songlist> {
         appBar: AppBar(
           title: Text(''),
         ),
-        body: Center(child: Text('Loading')),
+        body: Center(
+          child: Text('Loading'),
+        ),
       );
     }
 
@@ -45,13 +48,22 @@ class SonglistState extends State<Songlist> {
         elevation: 0,
         title: Text(_playlist['playlist']['name']),
       ),
-      body: Column(
+      body: Stack(
         children: <Widget>[
-          Expanded(
-            child: buildPlaylist(),
-          ),
+          Column(children: <Widget>[
+            Expanded(
+              child: buildPlaylist(),
+            )
+          ]),
+          Positioned(
+            child: buildBottomStateBar(context),
+            bottom: 0,
+            left: 0,
+            right: 0,
+          )
         ],
       ),
+      // persistentFooterButtons: buildBottomStateBar(context),
     );
   }
 
@@ -69,7 +81,8 @@ class SonglistState extends State<Songlist> {
           title: Text(playlist['playlist']['tracks'][index]['name'] ?? ''),
           onTap: () {
             playCenter.setPlaylist(playlist);
-            playCenter.setCurrenctPlayingSong(playlist['playlist']['tracks'][index]);
+            playCenter
+                .setCurrenctPlayingSong(playlist['playlist']['tracks'][index]);
             final songId = playlist['playlist']['tracks'][index]['id'];
             RoutesCenter.router.navigateTo(context, '/player?songId=$songId');
           },

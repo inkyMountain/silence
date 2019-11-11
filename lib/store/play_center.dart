@@ -108,7 +108,6 @@ class PlayCenter with ChangeNotifier {
       final isFileExsits = await songFile.exists();
       if (isFileExsits) {
         player.play(songFilePath, isLocal: true);
-        // notifyListeners();
         return;
       }
     }
@@ -119,19 +118,22 @@ class PlayCenter with ChangeNotifier {
     _currentPlayingSongUrl = songUrlResponse.data;
     final url = songUrlResponse.data['data'][0]['url'];
     _songUrl = url;
+    if (url == null) {
+      this.next();
+      return;
+    }
     await player.play(url);
     _cacheCurrentSong(url);
-
     notifyListeners();
   }
 
   Future<Null> _cacheCurrentSong(String url) async {
-    final songBytes = await http.readBytes(url);
+    final escapedFileName = _currentPlayingSong['name'].replaceAll('/', '|');
     final songId = _currentPlayingSongUrl['data'][0]['id'];
     final songSuffix = _currentPlayingSongUrl['data'][0]['type'];
-    final escapedFileName = _currentPlayingSong['name'].replaceAll('/', '|');
     final songFile =
         new File('${_appDocDir.path}/$escapedFileName.$songSuffix');
+    final songBytes = await http.readBytes(url);
     await songFile.writeAsBytes(songBytes);
     final cacheRecordFile = new File('${_appDocDir.path}/cache_record.json');
     dynamic cacheRecord = await cacheRecordFile.readAsString();
@@ -179,11 +181,10 @@ class PlayCenter with ChangeNotifier {
   int getSongIndex(String songId) {
     int currentSongIndex;
     Map<dynamic, dynamic> tracksMap = _playlist['playlist']['tracks'].asMap();
-    tracksMap.map((index, song) {
+    tracksMap.forEach((index, song) {
       if (song['id'].toString() == songId) {
         currentSongIndex = index;
       }
-      return MapEntry(index, song);
     });
     _currentSongIndex = currentSongIndex;
     return currentSongIndex;

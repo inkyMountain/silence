@@ -27,10 +27,12 @@ class PlayerState extends State<Player> {
 
   // 不可以缩减成一个方法，因为initState不允许加上async修饰符。
   void initPage() async {
-    await playAudio();
+    if (_songId != null) {
+      play();
+    }
   }
 
-  Future<Null> playAudio() async {
+  Future<Null> play() async {
     await Provider.of<PlayCenter>(context, listen: false).play(_songId);
   }
 
@@ -43,7 +45,6 @@ class PlayerState extends State<Player> {
   }
 
   Function buildPlayingList() {
-    print('===================================重新build');
     SchedulerBinding.instance.addPostFrameCallback((_) {
       final currentSongIndex =
           Provider.of<PlayCenter>(context).currentSongIndex;
@@ -127,7 +128,7 @@ class PlayerState extends State<Player> {
               ],
             )),
       ],
-    ));
+    ), );
   }
 }
 
