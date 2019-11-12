@@ -88,17 +88,34 @@ class PlayerState extends State<Player> {
   // store.playlist  播放列表
   @override
   Widget build(BuildContext context) {
+    final currentSongName =
+        Provider.of<PlayCenter>(context).currenctPlayingSong['name'];
     return Scaffold(
-        body: Stack(
-      children: <Widget>[
-        Center(
-            child: Text(
-                "${Provider.of<PlayCenter>(context).currenctPlayingSong['name']}")),
-        Container(
-            padding: EdgeInsets.all(40),
-            child: Column(
+        body: Stack(children: <Widget>[
+      AppBar(),
+      Container(
+          // padding: EdgeInsets.all(40),
+          child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                IconButton(
+            Expanded(child: Center(child: Text(currentSongName))),
+            buildMusicControls()
+          ]))
+    ]));
+  }
+
+  Widget buildMusicControls() {
+    return Container(
+        padding: EdgeInsets.only(bottom: 40, left: 50, right: 50),
+        child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: <Widget>[
+              IconButton(
+                icon: Icon(Icons.arrow_back),
+                onPressed: () =>
+                    Provider.of<PlayCenter>(context, listen: false).previous(),
+              ),
+              IconButton(
                   icon: Icon(Provider.of<PlayCenter>(context).playerState ==
                           AudioPlayerState.PLAYING
                       ? Icons.pause
@@ -108,27 +125,17 @@ class PlayerState extends State<Player> {
                             AudioPlayerState.PLAYING
                         ? pause()
                         : resume();
-                  },
-                ),
-                IconButton(
-                  icon: Icon(Icons.arrow_back),
-                  onPressed: () =>
-                      Provider.of<PlayCenter>(context, listen: false)
-                          .previous(),
-                ),
-                IconButton(
-                  icon: Icon(Icons.arrow_forward),
-                  onPressed: () =>
-                      Provider.of<PlayCenter>(context, listen: false).next(),
-                ),
-                IconButton(
-                    icon: Icon(Icons.menu),
-                    onPressed: () => showModalBottomSheet(
-                        context: context, builder: buildPlayingList()))
-              ],
-            )),
-      ],
-    ), );
+                  }),
+              IconButton(
+                icon: Icon(Icons.arrow_forward),
+                onPressed: () =>
+                    Provider.of<PlayCenter>(context, listen: false).next(),
+              ),
+              IconButton(
+                  icon: Icon(Icons.menu),
+                  onPressed: () => showModalBottomSheet(
+                      context: context, builder: buildPlayingList()))
+            ]));
   }
 }
 

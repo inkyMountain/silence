@@ -13,22 +13,23 @@ class PlayCenter with ChangeNotifier {
   AudioPlayer player;
   Duration duration;
   Duration position;
-  AudioPlayerState playerState;
   Dio _dio;
   bool _hasInitialized = false;
 
   Map<dynamic, dynamic> _currentPlayingSong;
   Map<dynamic, dynamic> _currentPlayingSongUrl;
+  String _songUrl;
+  bool _isLocal = false;
   int _currentSongIndex;
   StreamSubscription _positionSubscription;
   StreamSubscription _audioPlayerStateSubscription;
-  String _songUrl;
   Map<dynamic, dynamic> _playlist;
   Directory _appDocDir;
 
   get currenctPlayingSong => _currentPlayingSong;
   get playlist => _playlist;
   get currentSongIndex => _currentSongIndex;
+  get playerState => player.state;
 
   @override
   void dispose() {
@@ -49,11 +50,9 @@ class PlayCenter with ChangeNotifier {
   }
 
   initPlayer() async {
-    // player = await getPlayerInstance();
     _currentSongIndex = getSongIndex(_currentPlayingSong['id'].toString());
     player = AudioPlayer();
     _dio = await getDioInstance();
-    // await player.setReleaseMode(ReleaseMode.STOP);
     _addPlayerListeners();
     _appDocDir = await getExternalStorageDirectory();
   }
@@ -68,7 +67,6 @@ class PlayCenter with ChangeNotifier {
         .listen((position) => () => this.position = position);
 
     final onPlayError = (msg) {
-      playerState = AudioPlayerState.STOPPED;
       duration = new Duration(seconds: 0);
       position = new Duration(seconds: 0);
       next();
@@ -76,7 +74,6 @@ class PlayCenter with ChangeNotifier {
     };
 
     _audioPlayerStateSubscription = player.onPlayerStateChanged.listen((state) {
-      playerState = state;
       if (state == AudioPlayerState.PLAYING) {
         this.duration = player.duration;
       } else if (state == AudioPlayerState.COMPLETED) {
@@ -87,12 +84,47 @@ class PlayCenter with ChangeNotifier {
     }, onError: onPlayError);
   }
 
-  // 播放优先: 缓存 > 在线
+  /**
+   * 播放优先级: 缓存 > 在线
+   * 外界调用play方法前，会提前设置setCurrentPlayingSong & setPlaylist。
+   */
   Future<Null> play(String songId) async {
     if (!_hasInitialized) await initPlayer();
     await player.stop();
-    playerState = AudioPlayerState.PLAYING;
+    final suffixList = await getSuffixList(songId);
+    final hasSongBeenCached = suffixList.length > 0;
+    hasSongBeenCached
+        ? await handleLocalSong(suffixList)
+        : await handleOnlineSong(songId);
+  }
 
+  Future handleLocalSong(List suffixList) async {
+    final escapedFileName = _currentPlayingSong['name'].replaceAll('/', '|');
+    final _songUrl = '${_appDocDir.path}/$escapedFileName.${suffixList[0]}';
+    final songFile = new File(_songUrl);
+    final isFileExsits = await songFile.exists();
+    if (isFileExsits) {
+      _isLocal = true;
+      player.play(_songUrl, isLocal: true);
+    }
+  }
+
+  handleOnlineSong(String songId) async {
+    const BIT_RATE = 320000;
+    Response songUrlResponse =
+        await dio.get('/song/url?id=$songId&br=$BIT_RATE');
+    _currentPlayingSongUrl = songUrlResponse.data;
+    final _songUrl = songUrlResponse.data['data'][0]['url'];
+    if (_songUrl == null) {
+      this.next();
+      return;
+    }
+    await player.play(_songUrl);
+    cacheCurrentSong(_songUrl);
+    notifyListeners();
+  }
+
+  Future<List<dynamic>> getSuffixList(String songId) async {
     final cacheRecordFile = new File('${_appDocDir.path}/cache_record.json');
     if (!await cacheRecordFile.exists()) {
       await cacheRecordFile.create();
@@ -100,34 +132,10 @@ class PlayCenter with ChangeNotifier {
     dynamic cacheRecord = await cacheRecordFile.readAsString();
     cacheRecord = cacheRecord == '' ? '{}' : cacheRecord;
     final suffixList = json.decode(cacheRecord)[songId] ?? [];
-    if (!suffixList.isEmpty) {
-      final escapedFileName = _currentPlayingSong['name'].replaceAll('/', '|');
-      final songFilePath =
-          '${_appDocDir.path}/$escapedFileName.${suffixList[0]}';
-      final songFile = new File(songFilePath);
-      final isFileExsits = await songFile.exists();
-      if (isFileExsits) {
-        player.play(songFilePath, isLocal: true);
-        return;
-      }
-    }
-
-    final bitRate = 320000;
-    Response songUrlResponse =
-        await dio.get('/song/url?id=$songId&br=$bitRate');
-    _currentPlayingSongUrl = songUrlResponse.data;
-    final url = songUrlResponse.data['data'][0]['url'];
-    _songUrl = url;
-    if (url == null) {
-      this.next();
-      return;
-    }
-    await player.play(url);
-    _cacheCurrentSong(url);
-    notifyListeners();
+    return suffixList;
   }
 
-  Future<Null> _cacheCurrentSong(String url) async {
+  Future<Null> cacheCurrentSong(String url) async {
     final escapedFileName = _currentPlayingSong['name'].replaceAll('/', '|');
     final songId = _currentPlayingSongUrl['data'][0]['id'];
     final songSuffix = _currentPlayingSongUrl['data'][0]['type'];
@@ -149,19 +157,17 @@ class PlayCenter with ChangeNotifier {
 
   Future<Null> pause() async {
     await player.pause();
-    playerState = AudioPlayerState.PAUSED;
     notifyListeners();
   }
 
   Future<Null> resume() async {
-    await player.play(_songUrl);
-    playerState = AudioPlayerState.PLAYING;
+    await player.play(_songUrl, isLocal: _isLocal);
     notifyListeners();
   }
 
   previous() {
-    final currentSongIndex = getSongIndex(_currentPlayingSong['id'].toString());
-    final previousSongIndex = currentSongIndex == 0
+    int currentSongIndex = getSongIndex(_currentPlayingSong['id'].toString());
+    int previousSongIndex = currentSongIndex == 0
         ? _playlist['playlist']['tracks'].length - 1
         : currentSongIndex - 1;
     _currentPlayingSong = _playlist['playlist']['tracks'][previousSongIndex];
@@ -169,8 +175,8 @@ class PlayCenter with ChangeNotifier {
   }
 
   next() {
-    final currentSongIndex = getSongIndex(_currentPlayingSong['id'].toString());
-    final nextSongIndex =
+    int currentSongIndex = getSongIndex(_currentPlayingSong['id'].toString());
+    int nextSongIndex =
         currentSongIndex == _playlist['playlist']['tracks'].length - 1
             ? 0
             : currentSongIndex + 1;
