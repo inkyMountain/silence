@@ -1,7 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:silence/tools/http_service/http_service.dart';
-import 'package:flutter_statusbar_manager/flutter_statusbar_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:silence/router/routes.dart';
 
@@ -11,7 +10,6 @@ class LaunchState extends State<Launch> {
   @override
   void initState() {
     super.initState();
-    FlutterStatusbarManager.setHidden(true);
     init();
   }
 
@@ -33,46 +31,33 @@ class LaunchState extends State<Launch> {
     var loginStatus = await dio.post('/login/status').catchError((error) {
       errorMessage = error.response.data;
     });
-    return loginStatus == null? errorMessage: loginStatus.data;
+    return loginStatus == null ? errorMessage : loginStatus.data;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+        backgroundColor: Color(0xff42a5f5),
         body: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        Flexible(
-          fit: FlexFit.tight,
-          flex: 1,
-          child: Column(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: <Widget>[
-                Text(
-                  'Silence',
-                  style: TextStyle(
-                      color: Colors.lightBlue,
-                      fontSize: 50,
-                      fontWeight: FontWeight.w700),
-                )
-              ]),
-        ),
-        Flexible(
-          flex: 2,
-          fit: FlexFit.tight,
-          child: FlatButton(
-              onPressed: () {
-                // RoutesCenter.router.navigateTo(
-                //   context,
-                //   '/home',
-                //   // replace: true,
-                //   transition: TransitionType.native,
-                // );
-              },
-              child: Text('Flat Button')),
-        ),
-      ],
-    ));
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Flexible(
+                fit: FlexFit.tight,
+                flex: 1,
+                child: Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: <Widget>[
+                      Text(
+                        'Silence',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 50,
+                            fontWeight: FontWeight.w400),
+                      )
+                    ]),
+              ),
+              Flexible(flex: 2, fit: FlexFit.tight, child: Text(''))
+            ]));
   }
 }
 

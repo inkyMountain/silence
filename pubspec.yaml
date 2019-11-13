@@ -81,6 +81,6 @@ flutter:
   # see https://flutter.dev/custom-fonts/#from-packages
 
 flutter_native_splash:
-  image: assets/images/splash.png
+  image: assets/images/new_splash.png
   color: "42a5f5"
 # flutter pub pub run flutter_native_splash:create

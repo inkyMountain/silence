@@ -7,11 +7,11 @@ import 'package:silence/tools/http_service/http_service.dart';
 import 'package:silence/widgets/bottomStateBar.dart';
 
 class SonglistState extends State<Songlist> {
-  dynamic id;
+  SonglistState({this.id});
+
+  String id;
   Map<String, dynamic> _playlist;
   PlayCenter playCenter;
-
-  SonglistState({this.id});
 
   @override
   void initState() {
@@ -32,15 +32,11 @@ class SonglistState extends State<Songlist> {
   Widget build(BuildContext context) {
     if (_playlist == null) {
       return Scaffold(
-          appBar: AppBar(
-            title: Text(''),
-          ),
-          body: Center(
-            child: Text('Loading'),
-          ));
+          appBar: AppBar(title: Text('')),
+          body: Center(child: Text('Loading')));
     }
 
-    return Scaffold(
+    final scaffold = Scaffold(
         backgroundColor: Colors.white,
         appBar: AppBar(
           elevation: 0,
@@ -48,44 +44,36 @@ class SonglistState extends State<Songlist> {
         ),
         body: Stack(children: <Widget>[
           Column(children: <Widget>[
-            Expanded(
-              child: buildPlaylist(),
-            )
-          ]),
-          Positioned(
-            child: buildBottomStateBar(context),
-            bottom: 0,
-            left: 0,
-            right: 0,
-          )
+            Expanded(child: buildPlaylist()),
+            Container(child: buildBottomStateBar(context))
+          ])
         ]));
+    return scaffold;
   }
 
   Widget buildPlaylist() {
-    final playlist = _playlist;
-    if (playlist.isEmpty) {
+    if (_playlist.isEmpty) {
       return Text('');
     }
-    return ListView.builder(
-        itemCount: playlist == null ? 0 : playlist['playlist']['tracks'].length,
-        itemBuilder: (BuildContext context, int index) {
-          return ListTile(
-              dense: true,
-              title: Text(playlist['playlist']['tracks'][index]['name'] ?? ''),
-              onTap: () {
-                playCenter.setPlaylist(playlist);
-                playCenter.setCurrenctPlayingSong(
-                    playlist['playlist']['tracks'][index]);
-                final songId = playlist['playlist']['tracks'][index]['id'];
-                RoutesCenter.router
-                    .navigateTo(context, '/player?songId=$songId');
-              });
-        });
+    final listview = ListView.builder(
+        itemCount:
+            _playlist == null ? 0 : _playlist['playlist']['tracks'].length,
+        itemBuilder: (BuildContext context, int index) => ListTile(
+            dense: true,
+            title: Text(_playlist['playlist']['tracks'][index]['name'] ?? ''),
+            onTap: () {
+              playCenter.setPlaylist(_playlist);
+              playCenter.setCurrenctPlayingSong(
+                  _playlist['playlist']['tracks'][index]);
+              final songId = _playlist['playlist']['tracks'][index]['id'];
+              RoutesCenter.router.navigateTo(context, '/player?songId=$songId');
+            }));
+    return listview;
   }
 }
 
 class Songlist extends StatefulWidget {
-  final dynamic id;
+  final String id;
   Songlist({this.id});
 
   @override

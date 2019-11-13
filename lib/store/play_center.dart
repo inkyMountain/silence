@@ -100,7 +100,7 @@ class PlayCenter with ChangeNotifier {
 
   Future handleLocalSong(List suffixList) async {
     final escapedFileName = _currentPlayingSong['name'].replaceAll('/', '|');
-    final _songUrl = '${_appDocDir.path}/$escapedFileName.${suffixList[0]}';
+    _songUrl = '${_appDocDir.path}/$escapedFileName.${suffixList[0]}';
     final songFile = new File(_songUrl);
     final isFileExsits = await songFile.exists();
     if (isFileExsits) {
@@ -109,12 +109,12 @@ class PlayCenter with ChangeNotifier {
     }
   }
 
-  handleOnlineSong(String songId) async {
+  Future handleOnlineSong(String songId) async {
     const BIT_RATE = 320000;
     Response songUrlResponse =
         await dio.get('/song/url?id=$songId&br=$BIT_RATE');
     _currentPlayingSongUrl = songUrlResponse.data;
-    final _songUrl = songUrlResponse.data['data'][0]['url'];
+    _songUrl = songUrlResponse.data['data'][0]['url'];
     if (_songUrl == null) {
       this.next();
       return;

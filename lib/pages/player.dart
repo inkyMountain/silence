@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:provider/provider.dart';
 import 'package:silence/store/play_center.dart';
-// import 'package:indexed_list_view/indexed_list_view.dart';
 
 class PlayerState extends State<Player> {
   String _songId;
@@ -62,24 +61,21 @@ class PlayerState extends State<Player> {
                       itemCount: tracks.length,
                       itemBuilder: (BuildContext context, int index) {
                         return ListTile(
-                          key: index == 0 ? _listTileKey : null,
-                          // dense: true,
-                          title: Text(
-                            tracks[index]['name'],
-                            style: TextStyle(
-                                color: Provider.of<PlayCenter>(context)
-                                            .currenctPlayingSong['id'] ==
-                                        tracks[index]['id']
-                                    ? Colors.blue
-                                    : Colors.black),
-                          ),
-                          onTap: () {
-                            Provider.of<PlayCenter>(context)
-                                .setCurrenctPlayingSong(tracks[index]);
-                            Provider.of<PlayCenter>(context)
-                                .play(tracks[index]['id'].toString());
-                          },
-                        );
+                            key: index == 0 ? _listTileKey : null,
+                            dense: true,
+                            title: Text(tracks[index]['name'],
+                                style: TextStyle(
+                                    color: Provider.of<PlayCenter>(context)
+                                                .currenctPlayingSong['id'] ==
+                                            tracks[index]['id']
+                                        ? Colors.blue
+                                        : Colors.black)),
+                            onTap: () {
+                              Provider.of<PlayCenter>(context)
+                                  .setCurrenctPlayingSong(tracks[index]);
+                              Provider.of<PlayCenter>(context)
+                                  .play(tracks[index]['id'].toString());
+                            });
                       })))
         ]));
   }
@@ -94,7 +90,6 @@ class PlayerState extends State<Player> {
         body: Stack(children: <Widget>[
       AppBar(),
       Container(
-          // padding: EdgeInsets.all(40),
           child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
