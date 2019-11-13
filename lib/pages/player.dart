@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:audioplayer/audioplayer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -8,75 +10,71 @@ class PlayerState extends State<Player> {
   String _songId;
   final _scrollController = ScrollController();
   GlobalKey _listTileKey = GlobalKey();
+  PlayCenter playCenter;
+  double _tileContainerHeight = 0;
+  static const int VISIBLE_SONG_NUMBER = 8;
 
   PlayerState(this._songId);
 
   @override
   void initState() {
     super.initState();
-    initPage();
-  }
-
-  jumpIndex(int index) {
-    final RenderBox containerRenderBox =
-        _listTileKey.currentContext.findRenderObject();
-    final tileContainerHeight = containerRenderBox.size.height;
-    _scrollController.jumpTo(tileContainerHeight * index);
+    init();
   }
 
   // 不可以缩减成一个方法，因为initState不允许加上async修饰符。
-  void initPage() async {
-    if (_songId != null) {
-      play();
-    }
+  void init() async {
+    playCenter = Provider.of<PlayCenter>(context, listen: false);
+    if (_songId != null) await playCenter.play(_songId);
   }
 
-  Future<Null> play() async {
-    await Provider.of<PlayCenter>(context, listen: false).play(_songId);
-  }
-
-  Future<Null> pause() async {
-    await Provider.of<PlayCenter>(context).pause();
-  }
-
-  Future<Null> resume() async {
-    await Provider.of<PlayCenter>(context).resume();
+  void _setScrollTop() {
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      int songNumber = Provider.of<PlayCenter>(context)
+          .playlist['playlist']['tracks']
+          .length;
+      int currentSongIndex = Provider.of<PlayCenter>(context).currentSongIndex;
+      final RenderBox containerRenderBox =
+          _listTileKey.currentContext.findRenderObject();
+      _tileContainerHeight = containerRenderBox.size.height;
+      setState(() {});
+      if (songNumber > VISIBLE_SONG_NUMBER) {
+        final jumpNumber =
+            (songNumber - currentSongIndex) >= VISIBLE_SONG_NUMBER
+                ? currentSongIndex
+                : (songNumber - VISIBLE_SONG_NUMBER);
+        _scrollController.jumpTo(_tileContainerHeight * jumpNumber);
+      }
+    });
   }
 
   Function buildPlayingList() {
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      final currentSongIndex =
-          Provider.of<PlayCenter>(context).currentSongIndex;
-      jumpIndex(currentSongIndex);
-    });
+    _setScrollTop();
     final tracks =
         Provider.of<PlayCenter>(context).playlist['playlist']['tracks'];
+    final playlistItemBuilder = (BuildContext context, int index) => ListTile(
+        key: index == 0 ? _listTileKey : null,
+        dense: true,
+        title: Text(tracks[index]['name'],
+            style: TextStyle(
+                color: Provider.of<PlayCenter>(context)
+                            .currenctPlayingSong['id'] ==
+                        tracks[index]['id']
+                    ? Colors.blue
+                    : Colors.black)),
+        onTap: () => playCenter
+          ..setCurrenctPlayingSong(tracks[index])
+          ..play(tracks[index]['id'].toString()));
+
     return (context) => Container(
-        height: 600,
+        height: _tileContainerHeight * VISIBLE_SONG_NUMBER,
         child: Column(children: <Widget>[
           Expanded(
               child: Scrollbar(
                   child: ListView.builder(
                       controller: _scrollController,
                       itemCount: tracks.length,
-                      itemBuilder: (BuildContext context, int index) {
-                        return ListTile(
-                            key: index == 0 ? _listTileKey : null,
-                            dense: true,
-                            title: Text(tracks[index]['name'],
-                                style: TextStyle(
-                                    color: Provider.of<PlayCenter>(context)
-                                                .currenctPlayingSong['id'] ==
-                                            tracks[index]['id']
-                                        ? Colors.blue
-                                        : Colors.black)),
-                            onTap: () {
-                              Provider.of<PlayCenter>(context)
-                                  .setCurrenctPlayingSong(tracks[index]);
-                              Provider.of<PlayCenter>(context)
-                                  .play(tracks[index]['id'].toString());
-                            });
-                      })))
+                      itemBuilder: playlistItemBuilder)))
         ]));
   }
 
@@ -107,24 +105,21 @@ class PlayerState extends State<Player> {
             children: <Widget>[
               IconButton(
                 icon: Icon(Icons.arrow_back),
-                onPressed: () =>
-                    Provider.of<PlayCenter>(context, listen: false).previous(),
+                onPressed: () => playCenter.previous(),
               ),
               IconButton(
                   icon: Icon(Provider.of<PlayCenter>(context).playerState ==
                           AudioPlayerState.PLAYING
                       ? Icons.pause
                       : Icons.play_arrow),
-                  onPressed: () {
-                    Provider.of<PlayCenter>(context).playerState ==
-                            AudioPlayerState.PLAYING
-                        ? pause()
-                        : resume();
-                  }),
+                  onPressed: () =>
+                      Provider.of<PlayCenter>(context).playerState ==
+                              AudioPlayerState.PLAYING
+                          ? playCenter.pause()
+                          : playCenter.resume()),
               IconButton(
                 icon: Icon(Icons.arrow_forward),
-                onPressed: () =>
-                    Provider.of<PlayCenter>(context, listen: false).next(),
+                onPressed: () => playCenter.next(),
               ),
               IconButton(
                   icon: Icon(Icons.menu),
