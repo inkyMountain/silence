@@ -49,17 +49,14 @@ class TabMineState extends State<TabMine> with WidgetsBindingObserver {
 
   Future<dynamic> _requestSonglists() async {
     Dio dio = await getDioInstance();
-    Response songlistsResponse = await dio.post('/user/playlist?uid=$_uid');
+    Response songlistsResponse =
+        await dio.post('${interfaces['userPlaylist']}?uid=$_uid');
     return songlistsResponse.data;
   }
 
   // listType == 'liked'  用户收藏歌单
   // listType == 'user'   用户自创建歌单
   List<dynamic> _computeSonglistsData({String listType}) {
-    print('================================');
-    print(_songlists);
-    print(_uid);
-    print(_songlistFoldConfig);
     return _songlists == null
         ? [{}]
         : _songlists

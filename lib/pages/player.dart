@@ -1,10 +1,11 @@
-import 'dart:math';
-
 import 'package:audioplayer/audioplayer.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:provider/provider.dart';
+
 import 'package:silence/store/play_center.dart';
+import 'package:silence/tools/http_service/http_service.dart';
 
 class PlayerState extends State<Player> {
   String _songId;
@@ -12,6 +13,7 @@ class PlayerState extends State<Player> {
   GlobalKey _listTileKey = GlobalKey();
   PlayCenter playCenter;
   double _tileContainerHeight = 0;
+  Dio _dio;
   static const int VISIBLE_SONG_NUMBER = 8;
 
   PlayerState(this._songId);
@@ -24,6 +26,7 @@ class PlayerState extends State<Player> {
 
   // 不可以缩减成一个方法，因为initState不允许加上async修饰符。
   void init() async {
+    _dio = _dio ?? await getDioInstance();
     playCenter = Provider.of<PlayCenter>(context, listen: false);
     if (_songId != null) await playCenter.play(_songId);
   }
@@ -78,10 +81,16 @@ class PlayerState extends State<Player> {
         ]));
   }
 
+  buildLyric() {
+    // 这里已经是最终要的歌词了
+    final lyric = Provider.of<PlayCenter>(context).currentSongLyric['lrc']['lyric'];
+  }
+
   // store.currenctPlayingSong['name']  当前播放的歌曲
   // store.playlist  播放列表
   @override
   Widget build(BuildContext context) {
+    buildLyric();
     final currentSongName =
         Provider.of<PlayCenter>(context).currenctPlayingSong['name'];
     return Scaffold(

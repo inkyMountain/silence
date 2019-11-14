@@ -28,7 +28,7 @@ class LaunchState extends State<Launch> {
   Future<dynamic> getLoginStatus() async {
     Dio dio = await getDioInstance();
     var errorMessage;
-    var loginStatus = await dio.post('/login/status').catchError((error) {
+    var loginStatus = await dio.post(interfaces['loginStatus']).catchError((error) {
       errorMessage = error.response.data;
     });
     return loginStatus == null ? errorMessage : loginStatus.data;

@@ -22,7 +22,7 @@ class SonglistState extends State<Songlist> {
 
   initData() async {
     Dio dio = await getDioInstance();
-    Response response = await dio.post('/playlist/detail?id=$id');
+    Response response = await dio.post('${interfaces['playlistDetail']}?id=$id');
     setState(() {
       _playlist = response.data;
     });

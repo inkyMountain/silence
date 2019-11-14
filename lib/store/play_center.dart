@@ -13,14 +13,15 @@ class PlayCenter with ChangeNotifier {
   AudioPlayer player;
   Duration duration;
   Duration position;
-  Dio _dio;
   bool _hasInitialized = false;
 
   Map<dynamic, dynamic> _currentPlayingSong;
   Map<dynamic, dynamic> _currentPlayingSongUrl;
+  Dio _dio;
   String _songUrl;
   bool _isLocal = false;
   int _currentSongIndex;
+  Map<dynamic, dynamic> _currentSongLyric;
   StreamSubscription _positionSubscription;
   StreamSubscription _audioPlayerStateSubscription;
   Map<dynamic, dynamic> _playlist;
@@ -29,6 +30,7 @@ class PlayCenter with ChangeNotifier {
   get currenctPlayingSong => _currentPlayingSong;
   get playlist => _playlist;
   get currentSongIndex => _currentSongIndex;
+  get currentSongLyric => _currentSongLyric;
   get playerState => player.state;
 
   @override
@@ -50,9 +52,9 @@ class PlayCenter with ChangeNotifier {
   }
 
   initPlayer() async {
+    _dio = _dio ?? await getDioInstance();
     _currentSongIndex = getSongIndex(_currentPlayingSong['id'].toString());
     player = AudioPlayer();
-    _dio = await getDioInstance();
     _addPlayerListeners();
     _appDocDir = await getExternalStorageDirectory();
   }
@@ -62,9 +64,6 @@ class PlayCenter with ChangeNotifier {
       this.position = position;
       notifyListeners();
     });
-
-    _positionSubscription = player.onAudioPositionChanged
-        .listen((position) => () => this.position = position);
 
     final onPlayError = (msg) {
       duration = new Duration(seconds: 0);
@@ -96,6 +95,8 @@ class PlayCenter with ChangeNotifier {
     hasSongBeenCached
         ? await handleLocalSong(suffixList)
         : await handleOnlineSong(songId);
+    final lyric = await getLyric();
+    _currentSongLyric = lyric;
   }
 
   Future handleLocalSong(List suffixList) async {
@@ -133,6 +134,15 @@ class PlayCenter with ChangeNotifier {
     cacheRecord = cacheRecord == '' ? '{}' : cacheRecord;
     final suffixList = json.decode(cacheRecord)[songId] ?? [];
     return suffixList;
+  }
+
+  Future<Map<dynamic, dynamic>> getLyric() async {
+    if (_currentSongLyric == null) {
+      final lyricUrl = '${interfaces['lyric']}?id=${_currentPlayingSong['id']}';
+      final lyricResponse = await _dio.post(lyricUrl);
+      return lyricResponse.data;
+    }
+    return _currentSongLyric;
   }
 
   Future<Null> cacheCurrentSong(String url) async {

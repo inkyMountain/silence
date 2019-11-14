@@ -9,7 +9,6 @@ import 'package:silence/store/store.dart';
 import 'package:provider/provider.dart';
 
 class LoginState extends State<Login> {
-
   final accountController = TextEditingController();
   final passwordController = TextEditingController();
   final phoneInputKey = GlobalKey<FormState>();
@@ -38,8 +37,8 @@ class LoginState extends State<Login> {
 
   login({String phone, String password}) async {
     Dio dio = await getDioInstance();
-    Response loginResult =
-        await dio.post('/login/cellphone?phone=$phone&password=$password');
+    Response loginResult = await dio
+        .post('${interfaces['phoneLogin']}?phone=$phone&password=$password');
     print(loginResult.data.toString());
     SharedPreferences preferences = await SharedPreferences.getInstance();
     await preferences.setInt("uid", loginResult.data['account']['id']);
