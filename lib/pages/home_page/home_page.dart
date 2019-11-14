@@ -7,7 +7,7 @@ import './tab_find.dart';
 import './tab_more.dart';
 
 class HomePageState extends State<HomePage> with TickerProviderStateMixin {
-  List tabs = ['我的', '发现', '更多'];
+  List tabs = ['我的', '发现'];
 
   @override
   void initState() {
@@ -23,7 +23,7 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
           appBar: AppBar(
               elevation: 0,
               centerTitle: true,
-              title: Container(child: buildTabBar()),
+              title: Container(padding: EdgeInsets.symmetric(horizontal: 60), child: buildTabBar()),
               leading: Builder(
                   builder: (BuildContext context) => IconButton(
                       icon: Icon(Icons.menu),
@@ -36,7 +36,7 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
           body: Stack(children: <Widget>[
             Column(children: <Widget>[
               Expanded(
-                child: TabBarView(children: [TabMine(), TabFind(), TabMore()]),
+                child: TabBarView(children: [TabMine(), TabFind()]),
               ),
               Container(child: buildBottomStateBar(context))
             ])

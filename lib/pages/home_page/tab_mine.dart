@@ -1,10 +1,11 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:silence/router/routes.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'package:silence/router/routes.dart';
 import 'package:silence/store/store.dart';
-import '../../tools/http_service/http_service.dart';
+import 'package:silence/tools/http_service/http_service.dart';
 
 class TabMineState extends State<TabMine> with WidgetsBindingObserver {
   List<dynamic> _songlists;
@@ -23,21 +24,21 @@ class TabMineState extends State<TabMine> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
-    _initData();
+    _init();
   }
 
   // 首次进入页面时请求列表，后续从store中读取。
-  Future<Null> _initData() async {
+  Future<Null> _init() async {
     final playCenter = Provider.of<Store>(context, listen: false);
     final storedSonglists = playCenter.songlists;
+    await _initUidFromPersist(); // initUid必须在
     if (storedSonglists != null) {
       _songlists = storedSonglists['playlist'];
-      return;
+    } else {
+      final requestedSonglists = await _requestSonglists();
+      playCenter.setSonglists(requestedSonglists);
+      _songlists = requestedSonglists['playlist'];
     }
-    await _initUidFromPersist();
-    final requestedSonglists = await _requestSonglists();
-    playCenter.setSonglists(requestedSonglists);
-    _songlists = requestedSonglists['playlist'];
     setState(() {});
   }
 
@@ -54,15 +55,21 @@ class TabMineState extends State<TabMine> with WidgetsBindingObserver {
 
   // listType == 'liked'  用户收藏歌单
   // listType == 'user'   用户自创建歌单
-  List<dynamic> _computeSonglistsData({String listType}) => _songlists == null
-      ? [{}]
-      : _songlists
-          .where((song) => listType == 'liked'
-              ? (!_songlistFoldConfig['likedSonglist'] &&
-                  song['creator']['userId'] != _uid)
-              : (!_songlistFoldConfig['userSonglist'] &&
-                  song['creator']['userId'] == _uid))
-          .toList();
+  List<dynamic> _computeSonglistsData({String listType}) {
+    print('================================');
+    print(_songlists);
+    print(_uid);
+    print(_songlistFoldConfig);
+    return _songlists == null
+        ? [{}]
+        : _songlists
+            .where((songlist) => listType == 'liked'
+                ? (!_songlistFoldConfig['likedSonglist'] &&
+                    songlist['creator']['userId'] != _uid)
+                : (!_songlistFoldConfig['userSonglist'] &&
+                    songlist['creator']['userId'] == _uid))
+            .toList();
+  }
 
   Widget buildSonglists({String listType}) {
     final computeSonglistsData = _computeSonglistsData(listType: listType);
