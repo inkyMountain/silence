@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fluro/fluro.dart';
-import 'package:silence/tools/http_service/http_service.dart';
+import 'package:silence/tools/http_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
 import 'package:silence/router/routes.dart';

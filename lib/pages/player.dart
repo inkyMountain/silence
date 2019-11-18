@@ -6,7 +6,7 @@ import 'package:provider/provider.dart';
 
 import 'package:silence/store/play_center.dart';
 import 'package:silence/tools/calcBoxSize.dart';
-import 'package:silence/tools/http_service/http_service.dart';
+import 'package:silence/tools/http_service.dart';
 
 class PlayerState extends State<Player> {
   String _songId;

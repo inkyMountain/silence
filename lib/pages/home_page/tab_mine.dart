@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:silence/router/routes.dart';
 import 'package:silence/store/store.dart';
-import 'package:silence/tools/http_service/http_service.dart';
+import 'package:silence/tools/http_service.dart';
 
 class TabMineState extends State<TabMine> with WidgetsBindingObserver {
   List<dynamic> _songlists;

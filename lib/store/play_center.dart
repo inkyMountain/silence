@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:silence/tools/http_service/http_service.dart';
+import 'package:silence/tools/http_service.dart';
 
 class PlayCenter with ChangeNotifier {
   AudioPlayer player;

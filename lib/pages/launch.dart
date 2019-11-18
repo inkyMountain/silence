@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:silence/tools/http_service/http_service.dart';
+import 'package:silence/tools/http_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:silence/router/routes.dart';
 
