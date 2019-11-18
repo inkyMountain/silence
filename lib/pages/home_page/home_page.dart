@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:silence/store/play_center.dart';
 import 'package:silence/widgets/bottomStateBar.dart';
 import './profile_drawer.dart';
 
 import './tab_mine.dart';
 import './tab_find.dart';
-import './tab_more.dart';
 
 class HomePageState extends State<HomePage> with TickerProviderStateMixin {
   List tabs = ['我的', '发现'];
@@ -12,6 +13,11 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    init();
+  }
+
+  init() {
+    Provider.of<PlayCenter>(context, listen: false).play();
   }
 
   @override
@@ -23,7 +29,9 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
           appBar: AppBar(
               elevation: 0,
               centerTitle: true,
-              title: Container(padding: EdgeInsets.symmetric(horizontal: 60), child: buildTabBar()),
+              title: Container(
+                  padding: EdgeInsets.symmetric(horizontal: 40),
+                  child: buildTabBar()),
               leading: Builder(
                   builder: (BuildContext context) => IconButton(
                       icon: Icon(Icons.menu),

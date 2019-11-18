@@ -5,15 +5,18 @@ import 'package:flutter/scheduler.dart';
 import 'package:provider/provider.dart';
 
 import 'package:silence/store/play_center.dart';
+import 'package:silence/tools/calcBoxSize.dart';
 import 'package:silence/tools/http_service/http_service.dart';
 
 class PlayerState extends State<Player> {
   String _songId;
-  final _scrollController = ScrollController();
+  final _playlistScrollController = ScrollController();
+  final _lyricsScrollController = ScrollController();
+  Dio _dio;
   GlobalKey _listTileKey = GlobalKey();
   PlayCenter playCenter;
   double _tileContainerHeight = 0;
-  Dio _dio;
+  List<Map<String, String>> _lyricMaps;
   static const int VISIBLE_SONG_NUMBER = 8;
 
   PlayerState(this._songId);
@@ -24,11 +27,29 @@ class PlayerState extends State<Player> {
     init();
   }
 
-  // 不可以缩减成一个方法，因为initState不允许加上async修饰符。
   void init() async {
     _dio = _dio ?? await getDioInstance();
     playCenter = Provider.of<PlayCenter>(context, listen: false);
     if (_songId != null) await playCenter.play(_songId);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+        body: Stack(children: <Widget>[
+      AppBar(),
+      Container(
+          child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+            Expanded(
+                child: Container(
+                    padding: EdgeInsets.only(
+                        left: 70, right: 70, top: 40, bottom: 10),
+                    child: buildLyrics())),
+            buildControlsButtons()
+          ]))
+    ]));
   }
 
   void _setScrollTop() {
@@ -37,17 +58,16 @@ class PlayerState extends State<Player> {
           .playlist['playlist']['tracks']
           .length;
       int currentSongIndex = Provider.of<PlayCenter>(context).currentSongIndex;
-      final RenderBox containerRenderBox =
-          _listTileKey.currentContext.findRenderObject();
-      _tileContainerHeight = containerRenderBox.size.height;
-      setState(() {});
+      _tileContainerHeight = calcBoxSize(_listTileKey)['height'];
       if (songNumber > VISIBLE_SONG_NUMBER) {
         final jumpNumber =
             (songNumber - currentSongIndex) >= VISIBLE_SONG_NUMBER
                 ? currentSongIndex
                 : (songNumber - VISIBLE_SONG_NUMBER);
-        _scrollController.jumpTo(_tileContainerHeight * jumpNumber);
+        _playlistScrollController.animateTo(_tileContainerHeight * jumpNumber,
+            duration: Duration(milliseconds: 500), curve: Curves.easeInOut);
       }
+      setState(() {});
     });
   }
 
@@ -75,38 +95,47 @@ class PlayerState extends State<Player> {
           Expanded(
               child: Scrollbar(
                   child: ListView.builder(
-                      controller: _scrollController,
+                      controller: _playlistScrollController,
                       itemCount: tracks.length,
                       itemBuilder: playlistItemBuilder)))
         ]));
   }
 
-  buildLyric() {
-    // 这里已经是最终要的歌词了
-    final lyric = Provider.of<PlayCenter>(context).currentSongLyric['lrc']['lyric'];
+  buildLyrics() {
+    String lyrics;
+    try {
+      lyrics =
+          Provider.of<PlayCenter>(context).currentSongLyric['lrc']['lyric'];
+    } catch (e) {
+      lyrics = '';
+    }
+    List<String> timeAndLyric = lyrics.split('\n');
+    _lyricMaps = timeAndLyric.map((sentence) {
+      String time = sentence.split(']')[0];
+      String lyric = sentence.split(']').sublist(1).join();
+      return {'time': time, 'lyric': lyric};
+    }).toList();
+    if (lyrics == null || lyrics == '' || lyrics.contains('纯音乐请欣赏')) {
+      return Center(
+          child: Text(
+        'Sometimes rythnm touch you deeper than lyrics.',
+        style: TextStyle(height: 2, fontWeight: FontWeight.bold, fontSize: 16),
+        textAlign: TextAlign.center,
+      ));
+    }
+    return Column(children: <Widget>[
+      Expanded(
+          child: ListView.builder(
+        controller: _lyricsScrollController,
+        itemCount: _lyricMaps.length,
+        itemBuilder: (context, index) => Container(
+            alignment: Alignment.center,
+            child: Text(_lyricMaps[index]['lyric'])),
+      ))
+    ]);
   }
 
-  // store.currenctPlayingSong['name']  当前播放的歌曲
-  // store.playlist  播放列表
-  @override
-  Widget build(BuildContext context) {
-    buildLyric();
-    final currentSongName =
-        Provider.of<PlayCenter>(context).currenctPlayingSong['name'];
-    return Scaffold(
-        body: Stack(children: <Widget>[
-      AppBar(),
-      Container(
-          child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-            Expanded(child: Center(child: Text(currentSongName))),
-            buildMusicControls()
-          ]))
-    ]));
-  }
-
-  Widget buildMusicControls() {
+  Widget buildControlsButtons() {
     return Container(
         padding: EdgeInsets.only(bottom: 40, left: 50, right: 50),
         child: Row(
@@ -136,6 +165,10 @@ class PlayerState extends State<Player> {
                       context: context, builder: buildPlayingList()))
             ]));
   }
+
+  // store.currenctPlayingSong['name']  当前播放的歌曲
+  // store.playlist  播放列表
+
 }
 
 class Player extends StatefulWidget {
