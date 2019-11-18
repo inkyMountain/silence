@@ -22,7 +22,8 @@ class SonglistState extends State<Songlist> {
 
   initData() async {
     Dio dio = await getDioInstance();
-    Response response = await dio.post('${interfaces['playlistDetail']}?id=$id');
+    Response response =
+        await dio.post('${interfaces['playlistDetail']}?id=$id');
     setState(() {
       _playlist = response.data;
     });
@@ -32,7 +33,7 @@ class SonglistState extends State<Songlist> {
   Widget build(BuildContext context) {
     if (_playlist == null) {
       return Scaffold(
-          appBar: AppBar(title: Text('')),
+          appBar: AppBar(title: Text(''), elevation: 0),
           body: Center(child: Text('Loading')));
     }
 

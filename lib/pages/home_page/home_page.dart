@@ -22,35 +22,43 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-        length: tabs.length,
-        child: Scaffold(
-          backgroundColor: Colors.white,
-          appBar: AppBar(
-              elevation: 0,
-              centerTitle: true,
-              title: Container(
-                  padding: EdgeInsets.symmetric(horizontal: 40),
-                  child: buildTabBar()),
-              leading: Builder(
-                  builder: (BuildContext context) => IconButton(
-                      icon: Icon(Icons.menu),
-                      onPressed: () => Scaffold.of(context).openDrawer())),
-              actions: <Widget>[
-                IconButton(
-                    icon: Icon(Icons.search),
-                    onPressed: () => Navigator.pushNamed(context, '/search'))
+    return WillPopScope(
+        onWillPop: _onWillPop,
+        child: DefaultTabController(
+            length: tabs.length,
+            child: Scaffold(
+              backgroundColor: Colors.white,
+              appBar: AppBar(
+                  elevation: 0,
+                  centerTitle: true,
+                  title: Container(
+                      padding: EdgeInsets.symmetric(horizontal: 40),
+                      child: buildTabBar()),
+                  leading: Builder(
+                      builder: (BuildContext context) => IconButton(
+                          icon: Icon(Icons.menu),
+                          onPressed: () => Scaffold.of(context).openDrawer())),
+                  actions: <Widget>[
+                    IconButton(
+                        icon: Icon(Icons.search),
+                        onPressed: () =>
+                            Navigator.pushNamed(context, '/search'))
+                  ]),
+              body: Stack(children: <Widget>[
+                Column(children: <Widget>[
+                  Expanded(
+                    child: TabBarView(children: [TabMine(), TabFind()]),
+                  ),
+                  Container(child: buildBottomStateBar(context))
+                ])
               ]),
-          body: Stack(children: <Widget>[
-            Column(children: <Widget>[
-              Expanded(
-                child: TabBarView(children: [TabMine(), TabFind()]),
-              ),
-              Container(child: buildBottomStateBar(context))
-            ])
-          ]),
-          drawer: ProfileDrawer(),
-        ));
+              drawer: ProfileDrawer(),
+            )));
+  }
+
+  Future<bool> _onWillPop() async {
+    await Provider.of<PlayCenter>(context, listen: false).stop();
+    return true;
   }
 
   List<Widget> buildTabs() => tabs

@@ -108,7 +108,7 @@ class PlayCenter with ChangeNotifier {
     hasSongBeenCached
         ? await handleLocalSong(suffixList)
         : await handleOnlineSong(
-            songId ?? _currentPlayingSong['id'].toString()                                                                                                                                                                                                                                                           );
+            songId ?? _currentPlayingSong['id'].toString());
     persistPlayingData();
   }
 
@@ -191,6 +191,11 @@ class PlayCenter with ChangeNotifier {
 
   Future<Null> resume() async {
     await player.play(_songUrl, isLocal: _isLocal);
+    notifyListeners();
+  }
+
+  Future<Null> stop() async {
+    await player.stop();
     notifyListeners();
   }
 

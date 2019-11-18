@@ -35,9 +35,14 @@ class PlayerState extends State<Player> {
 
   @override
   Widget build(BuildContext context) {
+    String songName =
+        Provider.of<PlayCenter>(context).currenctPlayingSong['name'];
+
     return Scaffold(
         body: Stack(children: <Widget>[
-      AppBar(),
+      AppBar(
+          title: Text(songName,
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
       Container(
           child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -118,7 +123,7 @@ class PlayerState extends State<Player> {
     if (lyrics == null || lyrics == '' || lyrics.contains('纯音乐请欣赏')) {
       return Center(
           child: Text(
-        'Sometimes rythnm touch you deeper than lyrics.',
+        'Sometimes rhythm touch you deeper than lyrics.',
         style: TextStyle(height: 2, fontWeight: FontWeight.bold, fontSize: 16),
         textAlign: TextAlign.center,
       ));
