@@ -8,16 +8,24 @@ import 'package:silence/store/play_center.dart';
 import 'package:silence/tools/calcBoxSize.dart';
 import 'package:silence/tools/http_service.dart';
 
-class PlayerState extends State<Player> {
-  String _songId;
-  final _playlistScrollController = ScrollController();
-  final _lyricsScrollController = ScrollController();
+class PlayerState extends State<Player> with TickerProviderStateMixin {
+  // Tool
   Dio _dio;
-  GlobalKey _listTileKey = GlobalKey();
   PlayCenter playCenter;
-  double _tileContainerHeight = 0;
-  List<Map<String, String>> _lyricMaps;
+  // Data
+  String _songId;
   static const int VISIBLE_SONG_NUMBER = 8;
+  Map<String, dynamic> lyrics;
+  int _currentLyricIndex;
+  // Box size
+  double _tileContainerHeight = 0;
+  GlobalKey _listTileKey = GlobalKey();
+  double _singleLyricHeight = 0;
+  GlobalKey _singleLyricKey = GlobalKey();
+  final _playlistScrollController = ScrollController();
+  // Animation
+  Animation<double> animation;
+  AnimationController animationController;
 
   PlayerState(this._songId);
 
@@ -27,34 +35,50 @@ class PlayerState extends State<Player> {
     init();
   }
 
-  void init() async {
-    _dio = _dio ?? await getDioInstance();
-    playCenter = Provider.of<PlayCenter>(context, listen: false);
-    if (_songId != null) await playCenter.play(_songId);
+  void createAnimationCooperators(Duration duration, double begin, double end) {
+    if (animationController != null) {
+      animationController.dispose();
+    }
+    animationController = AnimationController(duration: duration, vsync: this);
+    Animation curvedAnimation =
+        CurvedAnimation(parent: animationController, curve: Curves.ease);
+    animation = Tween(begin: begin, end: end).animate(curvedAnimation)
+      ..addListener(() {
+        setState(() {});
+      });
   }
 
   @override
-  Widget build(BuildContext context) {
-    String songName =
-        Provider.of<PlayCenter>(context).currenctPlayingSong['name'];
+  void dispose() {
+    super.dispose();
+    _playlistScrollController.dispose();
+  }
 
-    return Scaffold(
-        body: Stack(children: <Widget>[
-      AppBar(
-          title: Text(songName,
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
-      Container(
-          child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-            Expanded(
-                child: Container(
-                    padding: EdgeInsets.only(
-                        left: 70, right: 70, top: 40, bottom: 10),
-                    child: buildLyrics())),
-            buildControlsButtons()
-          ]))
-    ]));
+  void init() async {
+    _dio = _dio ?? await getDioInstance();
+    playCenter = Provider.of<PlayCenter>(context, listen: false);
+    _measureBoxesSize();
+    _listenPositionChange();
+    if (_songId != null) await playCenter.play(_songId);
+  }
+
+  void _listenPositionChange() {
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      playCenter.addPositionListener((duration) {
+        if (lyrics == null) return;
+      });
+
+      // todo
+      // createAnimationCooperators(
+      //     const Duration(seconds: 10), 0.0, _singleLyricHeight * 10 ?? 10.0);
+      // animationController.forward();
+    });
+  }
+
+  void _measureBoxesSize() {
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      _singleLyricHeight = calcBoxSize(_singleLyricKey)['height'];
+    });
   }
 
   void _setScrollTop() {
@@ -69,11 +93,34 @@ class PlayerState extends State<Player> {
             (songNumber - currentSongIndex) >= VISIBLE_SONG_NUMBER
                 ? currentSongIndex
                 : (songNumber - VISIBLE_SONG_NUMBER);
-        _playlistScrollController.animateTo(_tileContainerHeight * jumpNumber,
-            duration: Duration(milliseconds: 500), curve: Curves.easeInOut);
+        _playlistScrollController.jumpTo(_tileContainerHeight * jumpNumber);
       }
-      setState(() {});
     });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    String songName =
+        Provider.of<PlayCenter>(context).currenctPlayingSong['name'];
+
+    return Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+            elevation: 0,
+            title: Text(songName,
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
+        body: Stack(children: <Widget>[
+          Container(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                Expanded(
+                    child: Container(
+                        padding: EdgeInsets.only(left: 40, right: 40),
+                        child: buildLyrics())),
+                buildControlsButtons()
+              ]))
+        ]));
   }
 
   Function buildPlayingList() {
@@ -106,39 +153,40 @@ class PlayerState extends State<Player> {
         ]));
   }
 
-  buildLyrics() {
-    String lyrics;
-    try {
-      lyrics =
-          Provider.of<PlayCenter>(context).currentSongLyric['lrc']['lyric'];
-    } catch (e) {
-      lyrics = '';
-    }
-    List<String> timeAndLyric = lyrics.split('\n');
-    _lyricMaps = timeAndLyric.map((sentence) {
-      String time = sentence.split(']')[0];
-      String lyric = sentence.split(']').sublist(1).join();
-      return {'time': time, 'lyric': lyric};
-    }).toList();
-    if (lyrics == null || lyrics == '' || lyrics.contains('纯音乐请欣赏')) {
-      return Center(
-          child: Text(
-        'Sometimes rhythm touch you deeper than lyrics.',
-        style: TextStyle(height: 2, fontWeight: FontWeight.bold, fontSize: 16),
-        textAlign: TextAlign.center,
-      ));
-    }
-    return Column(children: <Widget>[
-      Expanded(
-          child: ListView.builder(
-        controller: _lyricsScrollController,
-        itemCount: _lyricMaps.length,
-        itemBuilder: (context, index) => Container(
-            alignment: Alignment.center,
-            child: Text(_lyricMaps[index]['lyric'])),
-      ))
-    ]);
+  Widget buildLyrics() {
+    lyrics = Provider.of<PlayCenter>(context).lyrics;
+    final originalLyrics = lyrics['computed']['original'];
+    final translatedLyrics = lyrics['computed']['translated'];
+    return lyrics['exist']
+        ? Stack(children: <Widget>[
+            Positioned(
+                top: animation == null ? 0 : -animation.value,
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: ListView.builder(
+                    physics: NeverScrollableScrollPhysics(),
+                    itemCount: originalLyrics.length,
+                    itemBuilder: (context, index) => Container(
+                        padding: EdgeInsets.symmetric(vertical: 8),
+                        key: index == 0 ? _singleLyricKey : null,
+                        alignment: Alignment.center,
+                        child: Column(children: <Widget>[
+                          buildLyric(originalLyrics[index]['lyric']),
+                          buildLyric(translatedLyrics[index]['lyric'])
+                        ]))))
+          ])
+        : Center(
+            child: Text(
+            'Sometimes rhythm touch you deeper than lyrics.',
+            style:
+                TextStyle(height: 2, fontWeight: FontWeight.bold, fontSize: 16),
+            textAlign: TextAlign.center,
+          ));
   }
+
+  Widget buildLyric(String content) => Text(content,
+      textAlign: TextAlign.center, style: TextStyle(fontSize: 14, height: 1.5));
 
   Widget buildControlsButtons() {
     return Container(
@@ -170,10 +218,6 @@ class PlayerState extends State<Player> {
                       context: context, builder: buildPlayingList()))
             ]));
   }
-
-  // store.currenctPlayingSong['name']  当前播放的歌曲
-  // store.playlist  播放列表
-
 }
 
 class Player extends StatefulWidget {

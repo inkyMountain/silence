@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-
 import 'package:audioplayer/audioplayer.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -9,6 +8,8 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:silence/tools/http_service.dart';
+
+typedef PositionListener(Duration duration);
 
 class PlayCenter with ChangeNotifier {
   AudioPlayer player;
@@ -23,17 +24,21 @@ class PlayCenter with ChangeNotifier {
   String _songUrl;
   bool _isLocal = false;
   int _currentSongIndex;
-  Map<dynamic, dynamic> _currentSongLyric;
+  Map<dynamic, dynamic> _lyricsData;
   StreamSubscription _positionSubscription;
   StreamSubscription _audioPlayerStateSubscription;
   Map<dynamic, dynamic> _playlist;
+  List<PositionListener> _positionListeners = [];
   Directory _appDocDir;
+  Map<String, List> _computedLyrics;
+  bool _hasLyric;
 
   get currenctPlayingSong => _currentPlayingSong;
   get playlist => _playlist;
   get currentSongIndex => _currentSongIndex;
-  get currentSongLyric => _currentSongLyric;
+  get currentSongLyric => _lyricsData;
   get playerState => player == null ? AudioPlayerState.STOPPED : player.state;
+  get lyrics => {'exist': _hasLyric, 'computed': _computedLyrics};
 
   @override
   void dispose() {
@@ -75,6 +80,9 @@ class PlayCenter with ChangeNotifier {
   void _addPlayerListeners() {
     player.onAudioPositionChanged.listen((Duration position) {
       this.position = position;
+      _positionListeners.forEach((listener) {
+        listener(position);
+      });
       notifyListeners();
     });
     final onPlayError = (msg) {
@@ -94,6 +102,10 @@ class PlayCenter with ChangeNotifier {
     }, onError: onPlayError);
   }
 
+  void addPositionListener(PositionListener listener) {
+    _positionListeners.add(listener);
+  }
+
   /// 播放优先级: 缓存 > 在线
   /// 外界调用play方法前，会提前设置setCurrentPlayingSong & setPlaylist。
   Future<Null> play([String songId]) async {
@@ -109,6 +121,7 @@ class PlayCenter with ChangeNotifier {
         ? await handleLocalSong(suffixList)
         : await handleOnlineSong(
             songId ?? _currentPlayingSong['id'].toString());
+    handleLyrics();
     persistPlayingData();
   }
 
@@ -126,9 +139,48 @@ class PlayCenter with ChangeNotifier {
     if (isFileExsits) {
       _isLocal = true;
       player.play(_songUrl, isLocal: true);
-      final lyric = await getLyric();
-      _currentSongLyric = lyric;
     }
+  }
+
+  void handleLyrics() async {
+    final _lyricsData = await getLyrics();
+    _hasLyric = _lyricsData['nolyric'] == null;
+    String originalLyrics = _hasLyric ? _lyricsData['lrc']['lyric'] : '';
+    String translatedLyrics = _hasLyric ? _lyricsData['tlyric']['lyric'] : '';
+    _computedLyrics = {
+      'original': toListSyntax(originalLyrics),
+      'translated': toListSyntax(translatedLyrics),
+    };
+  }
+
+  //
+  List<Map<String, dynamic>> toListSyntax(String lyrics) {
+    final result = lyrics
+        .split('\n')
+        .where((lyric) =>
+            lyric != '' && RegExp('\\d').allMatches(lyric).length > 6)
+        .map((sentence) {
+      String lyric = sentence.split(']').sublist(1).join();
+      sentence = sentence.startsWith('[')
+          ? sentence.substring(1).split(']')[0]
+          : sentence.split(']')[0];
+      List<int> durationFragments = sentence
+          .split('.')[0]
+          .split(':')
+          .where((value) => value != '' && RegExp('\\d').hasMatch(value))
+          .map((value) => int.parse(value))
+          .toList();
+      durationFragments.add(int.parse(
+          sentence.split('.').length > 1 ? sentence.split('.')[1] : 0));
+      final duration = Duration(
+          minutes: durationFragments[0],
+          seconds: durationFragments.length > 1 ? durationFragments[1] : 0,
+          milliseconds:
+              durationFragments.length > 2 ? durationFragments[2] : 0);
+
+      return {'duration': duration, 'lyric': lyric};
+    }).toList();
+    return result;
   }
 
   Future handleOnlineSong(String songId) async {
@@ -142,8 +194,6 @@ class PlayCenter with ChangeNotifier {
       return;
     }
     player.play(_songUrl);
-    final lyric = await getLyric();
-    _currentSongLyric = lyric;
     cacheCurrentSong(_songUrl);
     notifyListeners();
   }
@@ -155,11 +205,10 @@ class PlayCenter with ChangeNotifier {
     }
     dynamic cacheRecord = await cacheRecordFile.readAsString();
     cacheRecord = cacheRecord == '' ? '{}' : cacheRecord;
-    final suffixList = json.decode(cacheRecord)[songId] ?? [];
-    return suffixList;
+    return json.decode(cacheRecord)[songId] ?? [];
   }
 
-  Future<Map<dynamic, dynamic>> getLyric() async {
+  Future<Map<dynamic, dynamic>> getLyrics() async {
     final lyricUrl = '${interfaces['lyric']}?id=${_currentPlayingSong['id']}';
     final lyricResponse = await _dio.post(lyricUrl);
     return lyricResponse.data;
