@@ -32,13 +32,18 @@ class PlayCenter with ChangeNotifier {
   Directory _appDocDir;
   Map<String, List> _computedLyrics;
   bool _hasLyric;
+  bool _hasLyricTranslation;
 
   get currenctPlayingSong => _currentPlayingSong;
   get playlist => _playlist;
   get currentSongIndex => _currentSongIndex;
   get currentSongLyric => _lyricsData;
   get playerState => player == null ? AudioPlayerState.STOPPED : player.state;
-  get lyrics => {'exist': _hasLyric, 'computed': _computedLyrics};
+  get lyrics => {
+        'exist': _hasLyric,
+        'hasTranslation': _hasLyricTranslation,
+        'computed': _computedLyrics
+      };
 
   @override
   void dispose() {
@@ -92,12 +97,8 @@ class PlayCenter with ChangeNotifier {
       notifyListeners();
     };
     _audioPlayerStateSubscription = player.onPlayerStateChanged.listen((state) {
-      if (state == AudioPlayerState.PLAYING) {
-        this.duration = player.duration;
-      } else if (state == AudioPlayerState.COMPLETED) {
-        next();
-        this.position = duration;
-      }
+      if (state == AudioPlayerState.PLAYING) this.duration = player.duration;
+      if (state == AudioPlayerState.COMPLETED) next();
       notifyListeners();
     }, onError: onPlayError);
   }
@@ -147,40 +148,40 @@ class PlayCenter with ChangeNotifier {
     _hasLyric = _lyricsData['nolyric'] == null;
     String originalLyrics = _hasLyric ? _lyricsData['lrc']['lyric'] : '';
     String translatedLyrics = _hasLyric ? _lyricsData['tlyric']['lyric'] : '';
+    _hasLyric = RegExp(r'\d+:\d+').hasMatch(originalLyrics);
+    _hasLyricTranslation = translatedLyrics != '' && translatedLyrics != null;
     _computedLyrics = {
-      'original': toListSyntax(originalLyrics),
-      'translated': toListSyntax(translatedLyrics),
+      'original': _hasLyric ? toListSyntax(originalLyrics) : [],
+      'translation': _hasLyric && translatedLyrics != null
+          ? toListSyntax(translatedLyrics)
+          : [],
     };
   }
 
-  //
   List<Map<String, dynamic>> toListSyntax(String lyrics) {
-    final result = lyrics
-        .split('\n')
-        .where((lyric) =>
-            lyric != '' && RegExp('\\d').allMatches(lyric).length > 6)
-        .map((sentence) {
+    final sentences = lyrics.split('\n').where((sentence) =>
+        sentence != null &&
+        sentence != '' &&
+        RegExp(r'\d+:\d+').hasMatch(sentence));
+    final list = sentences.map((sentence) {
       String lyric = sentence.split(']').sublist(1).join();
-      sentence = sentence.startsWith('[')
-          ? sentence.substring(1).split(']')[0]
-          : sentence.split(']')[0];
-      List<int> durationFragments = sentence
-          .split('.')[0]
-          .split(':')
-          .where((value) => value != '' && RegExp('\\d').hasMatch(value))
-          .map((value) => int.parse(value))
-          .toList();
-      durationFragments.add(int.parse(
-          sentence.split('.').length > 1 ? sentence.split('.')[1] : 0));
+      String durationString = RegExp(r'\d+:\d+').stringMatch(sentence);
+      final durationFragments =
+          durationString.split(':').map((value) => int.parse(value)).toList();
+      durationFragments.add(int.parse(durationString.split('.').length > 1
+          ? durationString.split('.')[1]
+          : '0'));
       final duration = Duration(
           minutes: durationFragments[0],
           seconds: durationFragments.length > 1 ? durationFragments[1] : 0,
           milliseconds:
               durationFragments.length > 2 ? durationFragments[2] : 0);
-
       return {'duration': duration, 'lyric': lyric};
+    });
+    final filtered = list.where((map) {
+      return map['lyric'] != '';
     }).toList();
-    return result;
+    return filtered;
   }
 
   Future handleOnlineSong(String songId) async {

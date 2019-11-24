@@ -9,25 +9,41 @@ import 'package:silence/tools/calcBoxSize.dart';
 import 'package:silence/tools/http_service.dart';
 
 class PlayerState extends State<Player> with TickerProviderStateMixin {
-  // Tool
-  Dio _dio;
-  PlayCenter playCenter;
+  PlayerState(this._songId);
+
   // Data
   String _songId;
   static const int VISIBLE_SONG_NUMBER = 8;
-  Map<String, dynamic> lyrics;
-  int _currentLyricIndex;
-  // Box size
-  double _tileContainerHeight = 0;
-  GlobalKey _listTileKey = GlobalKey();
-  double _singleLyricHeight = 0;
-  GlobalKey _singleLyricKey = GlobalKey();
-  final _playlistScrollController = ScrollController();
+  int _lastLyricIndex = 0;
+
   // Animation
   Animation<double> animation;
   AnimationController animationController;
+  Map<String, dynamic> lyrics;
 
-  PlayerState(this._songId);
+  // Tool
+  Dio _dio;
+  PlayCenter playCenter;
+  final _playlistScrollController = ScrollController();
+
+  // Box size
+  double _lyricAreaHeight = 0;
+  GlobalKey _lyricAreaKey = GlobalKey();
+  double _singleLyricHeight = 0;
+  GlobalKey _singleLyricKey = GlobalKey();
+  double _tileContainerHeight = 0;
+  GlobalKey _listTileKey = GlobalKey();
+
+  @override
+  void dispose() {
+    _playlistScrollController.dispose();
+    if (animation != null && animationController != null) {
+      animation.removeListener(animationListener);
+      animationController.dispose();
+      animationController = null;
+    }
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -35,29 +51,10 @@ class PlayerState extends State<Player> with TickerProviderStateMixin {
     init();
   }
 
-  void createAnimationCooperators(Duration duration, double begin, double end) {
-    if (animationController != null) {
-      animationController.dispose();
-    }
-    animationController = AnimationController(duration: duration, vsync: this);
-    Animation curvedAnimation =
-        CurvedAnimation(parent: animationController, curve: Curves.ease);
-    animation = Tween(begin: begin, end: end).animate(curvedAnimation)
-      ..addListener(() {
-        setState(() {});
-      });
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
-    _playlistScrollController.dispose();
-  }
-
   void init() async {
     _dio = _dio ?? await getDioInstance();
     playCenter = Provider.of<PlayCenter>(context, listen: false);
-    _measureBoxesSize();
+    // _measureBoxesSize();
     _listenPositionChange();
     if (_songId != null) await playCenter.play(_songId);
   }
@@ -66,18 +63,45 @@ class PlayerState extends State<Player> with TickerProviderStateMixin {
     SchedulerBinding.instance.addPostFrameCallback((_) {
       playCenter.addPositionListener((duration) {
         if (lyrics == null) return;
+        int index;
+        lyrics['computed']['original'].asMap().forEach((i, lyric) {
+          if (lyric['duration'] >= duration && index == null) index = (i - 1);
+        });
+        if (_lastLyricIndex != index && index != null) {
+          _scrollLyrics(
+              _singleLyricHeight * _lastLyricIndex, _singleLyricHeight * index);
+          _lastLyricIndex = index;
+        }
       });
-
-      // todo
-      // createAnimationCooperators(
-      //     const Duration(seconds: 10), 0.0, _singleLyricHeight * 10 ?? 10.0);
-      // animationController.forward();
     });
+  }
+
+  void _createAnimationCooperators(
+      double begin, double end, Duration duration) {
+    if (animationController != null) {
+      animationController.dispose();
+      animation.removeListener(animationListener);
+    }
+    animationController = AnimationController(duration: duration, vsync: this);
+    Animation curvedAnimation =
+        CurvedAnimation(parent: animationController, curve: Curves.easeInOut);
+    animation = Tween(begin: begin, end: end).animate(curvedAnimation)
+      ..addListener(animationListener);
+  }
+
+  void animationListener() {
+    if (this.mounted) setState(() {});
+  }
+
+  void _scrollLyrics(double from, double to) {
+    _createAnimationCooperators(from, to, Duration(milliseconds: 500));
+    animationController.forward();
   }
 
   void _measureBoxesSize() {
     SchedulerBinding.instance.addPostFrameCallback((_) {
       _singleLyricHeight = calcBoxSize(_singleLyricKey)['height'];
+      _lyricAreaHeight = calcBoxSize(_lyricAreaKey)['height'];
     });
   }
 
@@ -96,31 +120,6 @@ class PlayerState extends State<Player> with TickerProviderStateMixin {
         _playlistScrollController.jumpTo(_tileContainerHeight * jumpNumber);
       }
     });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    String songName =
-        Provider.of<PlayCenter>(context).currenctPlayingSong['name'];
-
-    return Scaffold(
-        backgroundColor: Colors.white,
-        appBar: AppBar(
-            elevation: 0,
-            title: Text(songName,
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
-        body: Stack(children: <Widget>[
-          Container(
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: <Widget>[
-                Expanded(
-                    child: Container(
-                        padding: EdgeInsets.only(left: 40, right: 40),
-                        child: buildLyrics())),
-                buildControlsButtons()
-              ]))
-        ]));
   }
 
   Function buildPlayingList() {
@@ -155,12 +154,16 @@ class PlayerState extends State<Player> with TickerProviderStateMixin {
 
   Widget buildLyrics() {
     lyrics = Provider.of<PlayCenter>(context).lyrics;
-    final originalLyrics = lyrics['computed']['original'];
-    final translatedLyrics = lyrics['computed']['translated'];
+    List originalLyrics = lyrics['computed']['original'];
+    List translatedLyrics = lyrics['computed']['translation'];
+    bool hasTranslation = translatedLyrics.length > 0;
+    double lyricsTop = animation == null
+        ? _lyricAreaHeight / 2 - _singleLyricHeight / 2
+        : _lyricAreaHeight / 2 - animation.value - _singleLyricHeight / 2;
     return lyrics['exist']
-        ? Stack(children: <Widget>[
+        ? Stack(key: _lyricAreaKey, children: <Widget>[
             Positioned(
-                top: animation == null ? 0 : -animation.value,
+                top: lyricsTop,
                 bottom: 0,
                 left: 0,
                 right: 0,
@@ -171,10 +174,13 @@ class PlayerState extends State<Player> with TickerProviderStateMixin {
                         padding: EdgeInsets.symmetric(vertical: 8),
                         key: index == 0 ? _singleLyricKey : null,
                         alignment: Alignment.center,
-                        child: Column(children: <Widget>[
-                          buildLyric(originalLyrics[index]['lyric']),
-                          buildLyric(translatedLyrics[index]['lyric'])
-                        ]))))
+                        child: Column(
+                            children: buildSentence(
+                                originalLyrics[index]['lyric'],
+                                hasTranslation
+                                    ? translatedLyrics[index]['lyric']
+                                    : null,
+                                index)))))
           ])
         : Center(
             child: Text(
@@ -185,8 +191,17 @@ class PlayerState extends State<Player> with TickerProviderStateMixin {
           ));
   }
 
-  Widget buildLyric(String content) => Text(content,
-      textAlign: TextAlign.center, style: TextStyle(fontSize: 14, height: 1.5));
+  List<Widget> buildSentence(String original, [String translation, int index]) {
+    Function buildText = (String content) => Text(content,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+            fontSize: index == _lastLyricIndex ? 14 : 14,
+            height: 1.5,
+            color: index == _lastLyricIndex ? Colors.blue : Colors.black));
+    List<Widget> list = [buildText(original)];
+    if (translation != null) list.add(buildText(translation));
+    return list;
+  }
 
   Widget buildControlsButtons() {
     return Container(
@@ -195,9 +210,10 @@ class PlayerState extends State<Player> with TickerProviderStateMixin {
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: <Widget>[
               IconButton(
-                icon: Icon(Icons.arrow_back),
-                onPressed: () => playCenter.previous(),
-              ),
+                  icon: Icon(Icons.arrow_back),
+                  onPressed: () {
+                    playCenter.previous();
+                  }),
               IconButton(
                   icon: Icon(Provider.of<PlayCenter>(context).playerState ==
                           AudioPlayerState.PLAYING
@@ -209,20 +225,48 @@ class PlayerState extends State<Player> with TickerProviderStateMixin {
                           ? playCenter.pause()
                           : playCenter.resume()),
               IconButton(
-                icon: Icon(Icons.arrow_forward),
-                onPressed: () => playCenter.next(),
-              ),
+                  icon: Icon(Icons.arrow_forward),
+                  onPressed: () {
+                    playCenter.next();
+                  }),
               IconButton(
                   icon: Icon(Icons.menu),
                   onPressed: () => showModalBottomSheet(
                       context: context, builder: buildPlayingList()))
             ]));
   }
+
+  @override
+  Widget build(BuildContext context) {
+    _measureBoxesSize();
+    String songName =
+        Provider.of<PlayCenter>(context).currenctPlayingSong['name'];
+
+    return Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+            elevation: 0,
+            title: Text(songName,
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
+        body: Stack(children: <Widget>[
+          Container(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                Expanded(
+                    child: Container(
+                        padding: EdgeInsets.only(left: 40, right: 40),
+                        child: buildLyrics())),
+                buildControlsButtons()
+              ]))
+        ]));
+  }
 }
 
 class Player extends StatefulWidget {
-  final songId;
   Player({this.songId});
+
+  final songId;
 
   @override
   State<StatefulWidget> createState() => PlayerState(songId);
