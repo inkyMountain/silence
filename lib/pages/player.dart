@@ -5,7 +5,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:provider/provider.dart';
 
 import 'package:silence/store/play_center.dart';
-import 'package:silence/tools/calcBoxSize.dart';
+import 'package:silence/tools/calc_box_size.dart';
 import 'package:silence/tools/http_service.dart';
 
 class PlayerState extends State<Player> with TickerProviderStateMixin {
@@ -15,6 +15,7 @@ class PlayerState extends State<Player> with TickerProviderStateMixin {
   String _songId;
   static const int VISIBLE_SONG_NUMBER = 8;
   int _lastLyricIndex = 0;
+  Map<int, double> _lyricHeights = {};
 
   // Animation
   Animation<double> animation;
@@ -27,10 +28,8 @@ class PlayerState extends State<Player> with TickerProviderStateMixin {
   final _playlistScrollController = ScrollController();
 
   // Box size
-  double _lyricAreaHeight = 0;
+  double _lyricAreaHeight = 250;
   GlobalKey _lyricAreaKey = GlobalKey();
-  double _singleLyricHeight = 0;
-  GlobalKey _singleLyricKey = GlobalKey();
   double _tileContainerHeight = 0;
   GlobalKey _listTileKey = GlobalKey();
 
@@ -54,7 +53,6 @@ class PlayerState extends State<Player> with TickerProviderStateMixin {
   void init() async {
     _dio = _dio ?? await getDioInstance();
     playCenter = Provider.of<PlayCenter>(context, listen: false);
-    // _measureBoxesSize();
     _listenPositionChange();
     if (_songId != null) await playCenter.play(_songId);
   }
@@ -65,11 +63,22 @@ class PlayerState extends State<Player> with TickerProviderStateMixin {
         if (lyrics == null) return;
         int index;
         lyrics['computed']['original'].asMap().forEach((i, lyric) {
-          if (lyric['duration'] >= duration && index == null) index = (i - 1);
+          if (lyric['duration'] >= duration && index == null) {
+            index = (i - 1);
+          }
         });
+        if (index == null) {
+          List original = lyrics['computed']['original'];
+          index = original.length - 1;
+        }
         if (_lastLyricIndex != index && index != null) {
-          _scrollLyrics(
-              _singleLyricHeight * _lastLyricIndex, _singleLyricHeight * index);
+          double totalHeight = 0;
+          _lyricHeights.forEach((i, height) {
+            if (i < index - 1) totalHeight += height;
+          });
+          if (index >= 1) {
+            _scrollLyrics(totalHeight, totalHeight + _lyricHeights[index - 1]);
+          }
           _lastLyricIndex = index;
         }
       });
@@ -100,7 +109,6 @@ class PlayerState extends State<Player> with TickerProviderStateMixin {
 
   void _measureBoxesSize() {
     SchedulerBinding.instance.addPostFrameCallback((_) {
-      _singleLyricHeight = calcBoxSize(_singleLyricKey)['height'];
       _lyricAreaHeight = calcBoxSize(_lyricAreaKey)['height'];
     });
   }
@@ -154,52 +162,54 @@ class PlayerState extends State<Player> with TickerProviderStateMixin {
 
   Widget buildLyrics() {
     lyrics = Provider.of<PlayCenter>(context).lyrics;
+    if (lyrics['computed'] == null) return Center(child: Text(''));
     List originalLyrics = lyrics['computed']['original'];
     List translatedLyrics = lyrics['computed']['translation'];
     bool hasTranslation = translatedLyrics.length > 0;
-    double lyricsTop = animation == null
-        ? _lyricAreaHeight / 2 - _singleLyricHeight / 2
-        : _lyricAreaHeight / 2 - animation.value - _singleLyricHeight / 2;
-    return lyrics['exist']
-        ? Stack(key: _lyricAreaKey, children: <Widget>[
-            Positioned(
-                top: lyricsTop,
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: ListView.builder(
-                    physics: NeverScrollableScrollPhysics(),
-                    itemCount: originalLyrics.length,
-                    itemBuilder: (context, index) => Container(
-                        padding: EdgeInsets.symmetric(vertical: 8),
-                        key: index == 0 ? _singleLyricKey : null,
-                        alignment: Alignment.center,
-                        child: Column(
-                            children: buildSentence(
-                                originalLyrics[index]['lyric'],
-                                hasTranslation
-                                    ? translatedLyrics[index]['lyric']
-                                    : null,
-                                index)))))
-          ])
-        : Center(
-            child: Text(
-            'Sometimes rhythm touch you deeper than lyrics.',
-            style:
-                TextStyle(height: 2, fontWeight: FontWeight.bold, fontSize: 16),
-            textAlign: TextAlign.center,
+    final lyricsList = originalLyrics
+        .asMap()
+        .map((index, map) {
+          return MapEntry(index, Builder(
+            builder: (context) {
+              SchedulerBinding.instance.addPostFrameCallback(
+                  (_) => _lyricHeights.addAll({index: context.size.height}));
+              return Container(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  alignment: Alignment.center,
+                  child: Column(
+                      children: buildSentence(
+                          originalLyrics[index]['lyric'],
+                          hasTranslation
+                              ? translatedLyrics[index]['lyric']
+                              : null,
+                          index)));
+            },
           ));
+        })
+        .values
+        .toList();
+    double lyricsTop = _lyricAreaHeight / 2 -
+        (_lyricHeights[0] ?? 0) / 2 - // 控制中间蓝色歌词的高度
+        (animation == null ? 0 : animation.value);
+    return Stack(key: _lyricAreaKey, children: <Widget>[
+      Positioned(
+          top: lyricsTop,
+          left: 0,
+          right: 0,
+          child: Container(child: Column(children: lyricsList)))
+    ]);
   }
 
   List<Widget> buildSentence(String original, [String translation, int index]) {
     Function buildText = (String content) => Text(content,
         textAlign: TextAlign.center,
         style: TextStyle(
-            fontSize: index == _lastLyricIndex ? 14 : 14,
+            fontSize: 14,
             height: 1.5,
             color: index == _lastLyricIndex ? Colors.blue : Colors.black));
     List<Widget> list = [buildText(original)];
-    if (translation != null) list.add(buildText(translation));
+    if (translation != null && translation != '')
+      list.add(buildText(translation));
     return list;
   }
 
@@ -209,6 +219,13 @@ class PlayerState extends State<Player> with TickerProviderStateMixin {
         child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: <Widget>[
+              IconButton(
+                  icon: Icon(Icons.favorite_border),
+                  onPressed: () {
+                    final songId = Provider.of<PlayCenter>(context)
+                        .currenctPlayingSong['id'];
+                    dio.post('${interfaces['like']}?id=$songId&like=true');
+                  }),
               IconButton(
                   icon: Icon(Icons.arrow_back),
                   onPressed: () {

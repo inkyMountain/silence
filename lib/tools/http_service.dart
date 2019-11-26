@@ -33,4 +33,5 @@ Map<String, String> interfaces = {
   'phoneLogin': '/login/cellphone',
   'playlistDetail': '/playlist/detail',
   'lyric': '/lyric',
+  'like': '/like',
 };

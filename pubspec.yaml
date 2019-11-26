@@ -25,12 +25,13 @@ dependencies:
   dio_cookie_manager: "^1.0.0"
   cookie_jar: ^1.0.0
   path_provider: ^1.4.0
-  audioplayers: ^0.13.2
+  # audioplayers: ^0.13.2
   audioplayer: ^0.5.2
   percent_indicator: "^2.1.1"
   cupertino_icons: ^0.1.2
   # flutter_statusbar_manager : ^1.0.2
-  indexed_list_view: ^1.0.8
+  # indexed_list_view: ^1.0.8
+  # infinite_listview: ^1.0.1+1
   flutter_launcher_icons: "^0.7.3"
   flutter:
     sdk: flutter

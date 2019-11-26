@@ -145,25 +145,43 @@ class PlayCenter with ChangeNotifier {
 
   void handleLyrics() async {
     final _lyricsData = await getLyrics();
-    _hasLyric = _lyricsData['nolyric'] == null;
+    _hasLyric = _lyricsData['nolyric'] == null && _lyricsData['lrc'] != null;
     String originalLyrics = _hasLyric ? _lyricsData['lrc']['lyric'] : '';
     String translatedLyrics = _hasLyric ? _lyricsData['tlyric']['lyric'] : '';
     _hasLyric = RegExp(r'\d+:\d+').hasMatch(originalLyrics);
     _hasLyricTranslation = translatedLyrics != '' && translatedLyrics != null;
+    final defaultOriginal = [
+      {
+        'duration': Duration(seconds: 0),
+        'lyric': 'Sometimes rhythm touch you deeper than lyrics.'
+      }
+    ];
+    List<Map> originalList = toListSyntax(originalLyrics);
+    List<Map> translationList =
+        translatedLyrics == null ? [] : toListSyntax(translatedLyrics);
+    translationList = originalList.map((original) {
+      String target;
+      translationList.forEach((translation) {
+        if (translation['duration'] == original['duration']) {
+          target = translation['lyric'];
+        }
+      });
+      return {'duration': original['duration'], 'lyric': target ?? ''};
+    }).toList();
     _computedLyrics = {
-      'original': _hasLyric ? toListSyntax(originalLyrics) : [],
-      'translation': _hasLyric && translatedLyrics != null
-          ? toListSyntax(translatedLyrics)
-          : [],
+      'original': _hasLyric ? originalList : defaultOriginal,
+      'translation': translationList,
     };
   }
 
   List<Map<String, dynamic>> toListSyntax(String lyrics) {
-    final sentences = lyrics.split('\n').where((sentence) =>
-        sentence != null &&
-        sentence != '' &&
-        RegExp(r'\d+:\d+').hasMatch(sentence));
-    final list = sentences.map((sentence) {
+    return lyrics
+        .split('\n')
+        .where((sentence) =>
+            sentence != null &&
+            sentence != '' &&
+            RegExp(r'\d+:\d+').hasMatch(sentence))
+        .map((sentence) {
       String lyric = sentence.split(']').sublist(1).join();
       String durationString = RegExp(r'\d+:\d+').stringMatch(sentence);
       final durationFragments =
@@ -177,11 +195,11 @@ class PlayCenter with ChangeNotifier {
           milliseconds:
               durationFragments.length > 2 ? durationFragments[2] : 0);
       return {'duration': duration, 'lyric': lyric};
-    });
-    final filtered = list.where((map) {
-      return map['lyric'] != '';
+    }).where((map) {
+      String lyric = map['lyric'];
+      return lyric != '';
+      // return lyric != '' && !lyric.contains(':') && !lyric.contains('：');
     }).toList();
-    return filtered;
   }
 
   Future handleOnlineSong(String songId) async {
