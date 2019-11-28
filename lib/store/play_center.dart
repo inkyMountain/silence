@@ -8,8 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:silence/tools/http_service.dart';
-
-typedef PositionListener(Duration duration);
+import 'package:silence/store/lyric_helper.dart';
 
 class PlayCenter with ChangeNotifier {
   AudioPlayer player;
@@ -24,26 +23,18 @@ class PlayCenter with ChangeNotifier {
   String _songUrl;
   bool _isLocal = false;
   int _currentSongIndex;
-  Map<dynamic, dynamic> _lyricsData;
   StreamSubscription _positionSubscription;
   StreamSubscription _audioPlayerStateSubscription;
   Map<dynamic, dynamic> _playlist;
-  List<PositionListener> _positionListeners = [];
-  Directory _appDocDir;
+  List<Map<String, dynamic>> _positionListeners = [];
   Map<String, List> _computedLyrics;
-  bool _hasLyric;
-  bool _hasLyricTranslation;
+  Directory _appDocDir;
 
   get currenctPlayingSong => _currentPlayingSong;
   get playlist => _playlist;
   get currentSongIndex => _currentSongIndex;
-  get currentSongLyric => _lyricsData;
   get playerState => player == null ? AudioPlayerState.STOPPED : player.state;
-  get lyrics => {
-        'exist': _hasLyric,
-        'hasTranslation': _hasLyricTranslation,
-        'computed': _computedLyrics
-      };
+  get lyrics => _computedLyrics;
 
   @override
   void dispose() {
@@ -85,8 +76,8 @@ class PlayCenter with ChangeNotifier {
   void _addPlayerListeners() {
     player.onAudioPositionChanged.listen((Duration position) {
       this.position = position;
-      _positionListeners.forEach((listener) {
-        listener(position);
+      _positionListeners.forEach((map) {
+        map['listener'](position);
       });
       notifyListeners();
     });
@@ -103,11 +94,16 @@ class PlayCenter with ChangeNotifier {
     }, onError: onPlayError);
   }
 
-  void addPositionListener(PositionListener listener) {
-    _positionListeners.add(listener);
+  // check duplicate before put in
+  void addPositionListener(String source, Function listener) {
+    final duplicates = _positionListeners
+        .where((listenerMap) => listenerMap['source'] == source);
+    duplicates.length >= 1
+        ? duplicates.toList()[0]['listener'] = listener
+        : _positionListeners.add({'source': source, 'listener': listener});
   }
 
-  /// 播放优先级: 缓存 > 在线
+  /// play cache before online
   /// 外界调用play方法前，会提前设置setCurrentPlayingSong & setPlaylist。
   Future<Null> play([String songId]) async {
     if (_currentPlayingSong == null && _playlist == null)
@@ -122,7 +118,8 @@ class PlayCenter with ChangeNotifier {
         ? await handleLocalSong(suffixList)
         : await handleOnlineSong(
             songId ?? _currentPlayingSong['id'].toString());
-    handleLyrics();
+    _computedLyrics =
+        await LyricHelper(songId ?? _currentPlayingSong['id'].toString()).getLyrics();
     persistPlayingData();
   }
 
@@ -141,65 +138,6 @@ class PlayCenter with ChangeNotifier {
       _isLocal = true;
       player.play(_songUrl, isLocal: true);
     }
-  }
-
-  void handleLyrics() async {
-    final _lyricsData = await getLyrics();
-    _hasLyric = _lyricsData['nolyric'] == null && _lyricsData['lrc'] != null;
-    String originalLyrics = _hasLyric ? _lyricsData['lrc']['lyric'] : '';
-    String translatedLyrics = _hasLyric ? _lyricsData['tlyric']['lyric'] : '';
-    _hasLyric = RegExp(r'\d+:\d+').hasMatch(originalLyrics);
-    _hasLyricTranslation = translatedLyrics != '' && translatedLyrics != null;
-    final defaultOriginal = [
-      {
-        'duration': Duration(seconds: 0),
-        'lyric': 'Sometimes rhythm touch you deeper than lyrics.'
-      }
-    ];
-    List<Map> originalList = toListSyntax(originalLyrics);
-    List<Map> translationList =
-        translatedLyrics == null ? [] : toListSyntax(translatedLyrics);
-    translationList = originalList.map((original) {
-      String target;
-      translationList.forEach((translation) {
-        if (translation['duration'] == original['duration']) {
-          target = translation['lyric'];
-        }
-      });
-      return {'duration': original['duration'], 'lyric': target ?? ''};
-    }).toList();
-    _computedLyrics = {
-      'original': _hasLyric ? originalList : defaultOriginal,
-      'translation': translationList,
-    };
-  }
-
-  List<Map<String, dynamic>> toListSyntax(String lyrics) {
-    return lyrics
-        .split('\n')
-        .where((sentence) =>
-            sentence != null &&
-            sentence != '' &&
-            RegExp(r'\d+:\d+').hasMatch(sentence))
-        .map((sentence) {
-      String lyric = sentence.split(']').sublist(1).join();
-      String durationString = RegExp(r'\d+:\d+').stringMatch(sentence);
-      final durationFragments =
-          durationString.split(':').map((value) => int.parse(value)).toList();
-      durationFragments.add(int.parse(durationString.split('.').length > 1
-          ? durationString.split('.')[1]
-          : '0'));
-      final duration = Duration(
-          minutes: durationFragments[0],
-          seconds: durationFragments.length > 1 ? durationFragments[1] : 0,
-          milliseconds:
-              durationFragments.length > 2 ? durationFragments[2] : 0);
-      return {'duration': duration, 'lyric': lyric};
-    }).where((map) {
-      String lyric = map['lyric'];
-      return lyric != '';
-      // return lyric != '' && !lyric.contains(':') && !lyric.contains('：');
-    }).toList();
   }
 
   Future handleOnlineSong(String songId) async {
@@ -225,12 +163,6 @@ class PlayCenter with ChangeNotifier {
     dynamic cacheRecord = await cacheRecordFile.readAsString();
     cacheRecord = cacheRecord == '' ? '{}' : cacheRecord;
     return json.decode(cacheRecord)[songId] ?? [];
-  }
-
-  Future<Map<dynamic, dynamic>> getLyrics() async {
-    final lyricUrl = '${interfaces['lyric']}?id=${_currentPlayingSong['id']}';
-    final lyricResponse = await _dio.post(lyricUrl);
-    return lyricResponse.data;
   }
 
   Future<Null> cacheCurrentSong(String url) async {

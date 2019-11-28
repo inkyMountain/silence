@@ -10,8 +10,8 @@ Future<Dio> getDioInstance() async {
   dio = dio ?? Dio();
   // setProxy(dio, '172.31.11.117:8888');
   dio.interceptors.add(LogInterceptor(responseBody: true));
-  dio.options.baseUrl = "http://118.25.185.172:8000";
-  // dio.options.baseUrl = "http://192.168.124.5:8000";
+  dio.options.baseUrl = "http://chenyitao.cn:8000";
+  // dio.options.baseUrl = "http://118.25.185.172:8000";
   Directory appDocDir = await getApplicationDocumentsDirectory();
   CookieJar cookieJar = PersistCookieJar(dir: appDocDir.path);
   dio.interceptors.add(CookieManager(cookieJar));

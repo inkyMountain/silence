@@ -15,7 +15,7 @@ class PlayerState extends State<Player> with TickerProviderStateMixin {
   String _songId;
   static const int VISIBLE_SONG_NUMBER = 8;
   int _lastLyricIndex = 0;
-  Map<int, double> _lyricHeights = {};
+  Map<int, double> _lyricHeights = {-1: 0, -2: 0};
 
   // Animation
   Animation<double> animation;
@@ -59,16 +59,16 @@ class PlayerState extends State<Player> with TickerProviderStateMixin {
 
   void _listenPositionChange() {
     SchedulerBinding.instance.addPostFrameCallback((_) {
-      playCenter.addPositionListener((duration) {
+      playCenter.addPositionListener('player', (duration) {
         if (lyrics == null) return;
         int index;
-        lyrics['computed']['original'].asMap().forEach((i, lyric) {
+        lyrics['original'].asMap().forEach((i, lyric) {
           if (lyric['duration'] >= duration && index == null) {
             index = (i - 1);
           }
         });
         if (index == null) {
-          List original = lyrics['computed']['original'];
+          List original = lyrics['original'];
           index = original.length - 1;
         }
         if (_lastLyricIndex != index && index != null) {
@@ -76,9 +76,8 @@ class PlayerState extends State<Player> with TickerProviderStateMixin {
           _lyricHeights.forEach((i, height) {
             if (i < index - 1) totalHeight += height;
           });
-          if (index >= 1) {
-            _scrollLyrics(totalHeight, totalHeight + _lyricHeights[index - 1]);
-          }
+          _scrollLyrics(
+              totalHeight, totalHeight + _lyricHeights[index - 1] ?? 0);
           _lastLyricIndex = index;
         }
       });
@@ -162,9 +161,9 @@ class PlayerState extends State<Player> with TickerProviderStateMixin {
 
   Widget buildLyrics() {
     lyrics = Provider.of<PlayCenter>(context).lyrics;
-    if (lyrics['computed'] == null) return Center(child: Text(''));
-    List originalLyrics = lyrics['computed']['original'];
-    List translatedLyrics = lyrics['computed']['translation'];
+    if (lyrics == null) return Center(child: Text(''));
+    List originalLyrics = lyrics['original'];
+    List translatedLyrics = lyrics['translation'];
     bool hasTranslation = translatedLyrics.length > 0;
     final lyricsList = originalLyrics
         .asMap()
