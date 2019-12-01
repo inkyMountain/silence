@@ -3,13 +3,13 @@ import 'package:dio/dio.dart';
 
 class LyricHelper {
   String _songId;
-  Map<String, List> _computedLyrics;
+  Map<String, List<Map>> _computedLyrics;
   Dio _dio;
 
   LyricHelper(String songId) : this._songId = songId;
 
-  /// Firstly request lyrics if empty.
-  /// Then return lyrics in readable syntax.
+  /// Request lyrics if empty
+  /// and return lyrics in readable syntax.
   Future getLyrics() async {
     if (_computedLyrics == null) {
       final lyricsData = await requestLyrics();
@@ -23,7 +23,7 @@ class LyricHelper {
     return (await _dio.post('${interfaces['lyric']}?id=$_songId')).data;
   }
 
-  Future<Map<String, List>> handleLyrics(Map lyricsData) async {
+  Future<Map<String, List<Map>>> handleLyrics(Map lyricsData) async {
     bool hasLyric = lyricsData['nolyric'] == null && lyricsData['lrc'] != null;
     String originalLyrics = hasLyric ? lyricsData['lrc']['lyric'] : '';
     String translatedLyrics = hasLyric ? lyricsData['tlyric']['lyric'] : '';
@@ -40,11 +40,11 @@ class LyricHelper {
           .where(
               (translation) => translation['duration'] == original['duration'])
           .toList();
-      String target = matches.length >= 1 &&
-              !original['lyric'].contains(':') &&
-              !original['lyric'].contains('：')
-          ? matches[0]['lyric']
-          : '';
+      // 忽略作曲信息和翻译为空的情况
+      bool needMatch = matches.length >= 1 &&
+          !original['lyric'].contains(':') &&
+          !original['lyric'].contains('：');
+      String target = needMatch ? matches[0]['lyric'] : '';
       return {'duration': original['duration'], 'lyric': target};
     }).toList();
     return {

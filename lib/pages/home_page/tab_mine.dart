@@ -31,7 +31,7 @@ class TabMineState extends State<TabMine> with WidgetsBindingObserver {
   Future<Null> _init() async {
     final playCenter = Provider.of<Store>(context, listen: false);
     final storedSonglists = playCenter.songlists;
-    await _initUidFromPersist(); // initUid必须在
+    await readUid(); // initUid必须在
     if (storedSonglists != null) {
       _songlists = storedSonglists['playlist'];
     } else {
@@ -42,7 +42,7 @@ class TabMineState extends State<TabMine> with WidgetsBindingObserver {
     setState(() {});
   }
 
-  Future<void> _initUidFromPersist() async {
+  Future<void> readUid() async {
     final preferences = await SharedPreferences.getInstance();
     _uid = preferences.getInt("uid");
   }

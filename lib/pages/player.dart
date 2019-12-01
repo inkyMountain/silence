@@ -15,7 +15,7 @@ class PlayerState extends State<Player> with TickerProviderStateMixin {
   String _songId;
   static const int VISIBLE_SONG_NUMBER = 8;
   int _lastLyricIndex = 0;
-  Map<int, double> _lyricHeights = {-1: 0, -2: 0};
+  Map<int, double> _lyricHeights = {-1: 0, -2: 0, -3: 0};
 
   // Animation
   Animation<double> animation;
@@ -58,28 +58,23 @@ class PlayerState extends State<Player> with TickerProviderStateMixin {
   }
 
   void _listenPositionChange() {
+    // lyrics scroll animation
     SchedulerBinding.instance.addPostFrameCallback((_) {
       playCenter.addPositionListener('player', (duration) {
         if (lyrics == null) return;
-        int index;
-        lyrics['original'].asMap().forEach((i, lyric) {
-          if (lyric['duration'] >= duration && index == null) {
-            index = (i - 1);
-          }
-        });
-        if (index == null) {
-          List original = lyrics['original'];
-          index = original.length - 1;
-        }
-        if (_lastLyricIndex != index && index != null) {
-          double totalHeight = 0;
-          _lyricHeights.forEach((i, height) {
-            if (i < index - 1) totalHeight += height;
-          });
-          _scrollLyrics(
-              totalHeight, totalHeight + _lyricHeights[index - 1] ?? 0);
-          _lastLyricIndex = index;
-        }
+        List<Map> original = lyrics['original'];
+        Map currentLyric = original.firstWhere(
+            (lyric) => lyric['duration'] >= duration,
+            orElse: () => null);
+        // 减1以后才是正在唱的歌词,最后一句歌词需要特殊处理.
+        int index = original.indexOf(currentLyric) - 1;
+        index = index == -2 ? original.length - 1 : index;
+        if (_lastLyricIndex == index) return;
+        double totalHeight = 0;
+        _lyricHeights
+            .forEach((i, height) => totalHeight += i < index ? height : 0.0);
+        _scrollLyrics(totalHeight, totalHeight + _lyricHeights[index]);
+        _lastLyricIndex = index;
       });
     });
   }
@@ -117,7 +112,7 @@ class PlayerState extends State<Player> with TickerProviderStateMixin {
       int songNumber = Provider.of<PlayCenter>(context)
           .playlist['playlist']['tracks']
           .length;
-      int currentSongIndex = Provider.of<PlayCenter>(context).currentSongIndex;
+      int currentSongIndex = Provider.of<PlayCenter>(context).songIndex;
       _tileContainerHeight = calcBoxSize(_listTileKey)['height'];
       if (songNumber > VISIBLE_SONG_NUMBER) {
         final jumpNumber =
@@ -138,13 +133,13 @@ class PlayerState extends State<Player> with TickerProviderStateMixin {
         dense: true,
         title: Text(tracks[index]['name'],
             style: TextStyle(
-                color: Provider.of<PlayCenter>(context)
-                            .currenctPlayingSong['id'] ==
-                        tracks[index]['id']
-                    ? Colors.blue
-                    : Colors.black)),
+                color:
+                    Provider.of<PlayCenter>(context).currentPlayingSong['id'] ==
+                            tracks[index]['id']
+                        ? Colors.blue
+                        : Colors.black)),
         onTap: () => playCenter
-          ..setCurrenctPlayingSong(tracks[index])
+          ..setCurrentPlayingSong(tracks[index])
           ..play(tracks[index]['id'].toString()));
 
     return (context) => Container(
@@ -168,26 +163,24 @@ class PlayerState extends State<Player> with TickerProviderStateMixin {
     final lyricsList = originalLyrics
         .asMap()
         .map((index, map) {
-          return MapEntry(index, Builder(
-            builder: (context) {
-              SchedulerBinding.instance.addPostFrameCallback(
-                  (_) => _lyricHeights.addAll({index: context.size.height}));
-              return Container(
-                  padding: EdgeInsets.symmetric(vertical: 8),
-                  alignment: Alignment.center,
-                  child: Column(
-                      children: buildSentence(
-                          originalLyrics[index]['lyric'],
-                          hasTranslation
-                              ? translatedLyrics[index]['lyric']
-                              : null,
-                          index)));
-            },
-          ));
+          return MapEntry(index, Builder(builder: (context) {
+            SchedulerBinding.instance.addPostFrameCallback(
+                (_) => _lyricHeights.addAll({index: context.size.height}));
+            return Container(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                alignment: Alignment.center,
+                child: Column(
+                    children: buildSentence(
+                        originalLyrics[index]['lyric'],
+                        hasTranslation
+                            ? translatedLyrics[index]['lyric']
+                            : null,
+                        index)));
+          }));
         })
         .values
         .toList();
-    double lyricsTop = _lyricAreaHeight / 2 -
+    double lyricsTop = _lyricAreaHeight / 2 +
         (_lyricHeights[0] ?? 0) / 2 - // 控制中间蓝色歌词的高度
         (animation == null ? 0 : animation.value);
     return Stack(key: _lyricAreaKey, children: <Widget>[
@@ -222,7 +215,7 @@ class PlayerState extends State<Player> with TickerProviderStateMixin {
                   icon: Icon(Icons.favorite_border),
                   onPressed: () {
                     final songId = Provider.of<PlayCenter>(context)
-                        .currenctPlayingSong['id'];
+                        .currentPlayingSong['id'];
                     dio.post('${interfaces['like']}?id=$songId&like=true');
                   }),
               IconButton(
@@ -256,7 +249,7 @@ class PlayerState extends State<Player> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     _measureBoxesSize();
     String songName =
-        Provider.of<PlayCenter>(context).currenctPlayingSong['name'];
+        Provider.of<PlayCenter>(context).currentPlayingSong['name'];
 
     return Scaffold(
         backgroundColor: Colors.white,

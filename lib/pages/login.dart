@@ -35,19 +35,26 @@ class LoginState extends State<Login> {
     }
   }
 
-  login({String phone, String password}) async {
+  Future login({String phone, String password}) async {
     Dio dio = await getDioInstance();
     Response loginResult = await dio
-        .post('${interfaces['phoneLogin']}?phone=$phone&password=$password');
-    print(loginResult.data.toString());
-    SharedPreferences preferences = await SharedPreferences.getInstance();
-    await preferences.setInt("uid", loginResult.data['account']['id']);
-    return loginResult.data['code'] == 200
-        ? {
-            'account': loginResult.data['account'],
-            'profile': loginResult.data['profile']
-          }
-        : null;
+        .post('${interfaces['phoneLogin']}?phone=$phone&password=$password')
+        .catchError((error) => error.response);
+    Map loginData = loginResult.data;
+    print(loginData.toString());
+    if (loginData['code'] == 200) {
+      final preferences = await SharedPreferences.getInstance();
+      await preferences.setInt("uid", loginData['account']['id']);
+    }
+    return loginData;
+  }
+
+  void showErrorMessage(String message) {
+    showDialog(
+        context: context,
+        builder: (BuildContext context) => AlertDialog(
+            title: Text(message,
+                style: TextStyle(color: Colors.black87, fontSize: 14))));
   }
 
   String accountValidator(value) {
@@ -62,8 +69,6 @@ class LoginState extends State<Login> {
 
   @override
   Widget build(BuildContext context) {
-    // checkLoginStatus();
-
     var accountInput = Container(
       padding: EdgeInsets.symmetric(vertical: 10, horizontal: 60),
       child: TextFormField(
@@ -80,88 +85,52 @@ class LoginState extends State<Login> {
     );
 
     var passwordInput = Container(
-      padding: EdgeInsets.symmetric(vertical: 10, horizontal: 60),
-      child: TextFormField(
-          obscureText: true,
-          validator: (value) {
-            return value.length <= 1 ? '你的密码应该不会这么短吧' : null;
-          },
-          controller: passwordController,
-          decoration: InputDecoration(
-              hintText: '密码',
-              suffixIcon: Icon(Icons.account_box, color: Colors.blue),
-              counterText: '',
-              errorStyle: TextStyle(color: Colors.lightBlue),
-              border: InputBorder.none)),
-    );
+        padding: EdgeInsets.symmetric(vertical: 10, horizontal: 60),
+        child: TextFormField(
+            obscureText: true,
+            validator: (value) => value.length <= 1 ? '你的密码应该不会这么短吧' : null,
+            controller: passwordController,
+            decoration: InputDecoration(
+                hintText: '密码',
+                suffixIcon: Icon(Icons.account_box, color: Colors.blue),
+                counterText: '',
+                errorStyle: TextStyle(color: Colors.lightBlue),
+                border: InputBorder.none)));
 
     return Scaffold(
-      body: Stack(children: <Widget>[
-        Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              Container(
+        body: Stack(children: <Widget>[
+      Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Container(
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: <Widget>[
-                    Form(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: <Widget>[
+                  Form(
                       key: phoneInputKey,
                       child: Column(
-                        children: <Widget>[
-                          accountInput,
-                          passwordInput,
-                        ],
-                      ),
-                    ),
-                    FlatButton(
+                          children: <Widget>[accountInput, passwordInput])),
+                  FlatButton(
                       child: Text(
                         '登录',
                         style: TextStyle(color: Colors.black87),
                       ),
-                      onPressed: () async {
-                        if (phoneInputKey.currentState.validate()) {
-                          final userInfo = await login(
-                              phone: accountController.text,
-                              password: passwordController.text);
-                          if (userInfo != null) {
-                            Provider.of<Store>(context, listen: false)
-                                .setUserInfo(userInfo);
-                            RoutesCenter.router.navigateTo(context, '/home',
-                                transition: TransitionType.native,
-                                replace: true);
-                          } else {
-                            showDialog(
-                                context: context,
-                                builder: (BuildContext context) {
-                                  return AlertDialog(
-                                    title: Text('登录出错，请检查账号密码。',
-                                        style: TextStyle(
-                                            color: Colors.black87,
-                                            fontSize: 14)),
-                                  );
-                                });
-                          }
-                        }
-                      },
-                    ),
-                  ],
-                ),
-              )
-            ]),
-        Positioned(
-            child: Container(
-          alignment: Alignment.bottomCenter,
+                      onPressed: onPressLogin)
+                ]))
+          ]),
+      Positioned(
           child: Container(
-            child: Text(
-              '注册功能目前未上线，请使用网易云账号登录。',
-              style: TextStyle(color: Colors.grey, fontSize: 10),
-            ),
-            margin: EdgeInsets.only(bottom: 20, top: 0, left: 20, right: 20),
-          ),
-        ))
-      ]),
-    );
+              alignment: Alignment.bottomCenter,
+              child: Container(
+                child: Text(
+                  '注册功能目前未上线，请使用网易云账号登录。',
+                  style: TextStyle(color: Colors.grey, fontSize: 10),
+                ),
+                margin:
+                    EdgeInsets.only(bottom: 20, top: 0, left: 20, right: 20),
+              )))
+    ]));
   }
 
   TextFormField buildBaseInput(
@@ -182,6 +151,23 @@ class LoginState extends State<Login> {
       print(accountController.text);
     });
     passwordController.addListener(() {});
+  }
+
+  onPressLogin() async {
+    if (!phoneInputKey.currentState.validate()) return;
+    Map loginData = await login(
+        phone: accountController.text, password: passwordController.text);
+    if (loginData['code'] != 200) {
+      showErrorMessage(loginData['msg'] ?? loginData['message']);
+      return;
+    }
+    final userInfo = {
+      'account': loginData['account'],
+      'profile': loginData['profile']
+    };
+    Provider.of<Store>(context, listen: false).setUserInfo(userInfo);
+    RoutesCenter.router.navigateTo(context, '/home',
+        transition: TransitionType.native, replace: true);
   }
 }
 

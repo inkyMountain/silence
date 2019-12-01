@@ -46,7 +46,7 @@ class SonglistState extends State<Songlist> {
         body: Stack(children: <Widget>[
           Column(children: <Widget>[
             Expanded(child: buildPlaylist()),
-            Container(child: buildBottomStateBar(context))
+            Container(child: BottomStateBar())
           ])
         ]));
     return scaffold;
@@ -64,7 +64,7 @@ class SonglistState extends State<Songlist> {
             title: Text(_playlist['playlist']['tracks'][index]['name'] ?? ''),
             onTap: () {
               playCenter.setPlaylist(_playlist);
-              playCenter.setCurrenctPlayingSong(
+              playCenter.setCurrentPlayingSong(
                   _playlist['playlist']['tracks'][index]);
               final songId = _playlist['playlist']['tracks'][index]['id'];
               RoutesCenter.router.navigateTo(context, '/player?songId=$songId');

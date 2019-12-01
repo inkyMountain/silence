@@ -11,30 +11,30 @@ import 'package:silence/tools/http_service.dart';
 import 'package:silence/store/lyric_helper.dart';
 
 class PlayCenter with ChangeNotifier {
-  AudioPlayer player;
+  AudioPlayer player = AudioPlayer();
   Duration duration;
   Duration position;
   bool _hasInitialized = false;
 
-  Map<dynamic, dynamic> _currentPlayingSong;
-  Map<dynamic, dynamic> _currentPlayingSongUrl;
+  Map<dynamic, dynamic> _songData;
+  Map<dynamic, dynamic> _songUrlData;
   Dio _dio;
   SharedPreferences _preferences;
   String _songUrl;
-  bool _isLocal = false;
-  int _currentSongIndex;
   StreamSubscription _positionSubscription;
   StreamSubscription _audioPlayerStateSubscription;
   Map<dynamic, dynamic> _playlist;
   List<Map<String, dynamic>> _positionListeners = [];
-  Map<String, List> _computedLyrics;
+  Map<String, List<Map>> _computedLyrics;
+  bool _isLocal = false;
   Directory _appDocDir;
+  List<String> _cachedFilePaths = [];
 
-  get currenctPlayingSong => _currentPlayingSong;
+  get currentPlayingSong => _songData;
   get playlist => _playlist;
-  get currentSongIndex => _currentSongIndex;
   get playerState => player == null ? AudioPlayerState.STOPPED : player.state;
   get lyrics => _computedLyrics;
+  get songIndex => getSongIndex(currentPlayingSong['id'].toString());
 
   @override
   void dispose() {
@@ -49,28 +49,26 @@ class PlayCenter with ChangeNotifier {
     notifyListeners();
   }
 
-  void setCurrenctPlayingSong(Map<dynamic, dynamic> currentPlayingSong) {
-    _currentPlayingSong = currentPlayingSong;
+  void setCurrentPlayingSong(Map<dynamic, dynamic> songData) {
+    _songData = songData;
     notifyListeners();
   }
 
-  initPlayer() async {
+  init() async {
     _dio = _dio ?? await getDioInstance();
-    _currentSongIndex = getSongIndex(_currentPlayingSong['id'].toString());
-    player = AudioPlayer();
     _addPlayerListeners();
     _appDocDir = await getExternalStorageDirectory();
+    await _appDocDir.list().forEach((file) => _cachedFilePaths.add(file.path));
+    _hasInitialized = true;
   }
 
-  initPersistedPlayingData() async {
-    _preferences = await SharedPreferences.getInstance();
-    final playlistString = _preferences.getString('playlist');
-    _playlist = playlistString == null ? null : json.decode(playlistString);
-    final currentPlayingSongString =
-        _preferences.getString('currentPlayingSong');
-    _currentPlayingSong = currentPlayingSongString == null
-        ? null
-        : json.decode(currentPlayingSongString);
+  readCachedPlayInfo() async {
+    _preferences = _preferences ?? await SharedPreferences.getInstance();
+    String cachedPlaylist = _preferences.getString('playlist');
+    String cachedSongData = _preferences.getString('songData');
+    _playlist = cachedPlaylist == null ? null : json.decode(cachedPlaylist);
+    _songData = cachedSongData == null ? null : json.decode(cachedSongData);
+    notifyListeners();
   }
 
   void _addPlayerListeners() {
@@ -104,84 +102,65 @@ class PlayCenter with ChangeNotifier {
   }
 
   /// play cache before online
-  /// 外界调用play方法前，会提前设置setCurrentPlayingSong & setPlaylist。
+  /// 外界调用play方法前，会提前设置setsongData & setPlaylist。
+  /// Todo 缓存读取已改造完成。还需要改写缓存写入。
   Future<Null> play([String songId]) async {
-    if (_currentPlayingSong == null && _playlist == null)
-      await initPersistedPlayingData();
-    if (_currentPlayingSong == null && _playlist == null) return;
-    if (!_hasInitialized) await initPlayer();
+    if (_songData == null && _playlist == null) await readCachedPlayInfo();
+    if (!_hasInitialized) await init();
     await player.stop();
-    final suffixList =
-        await getSuffixList(songId ?? _currentPlayingSong['id'].toString());
-    final hasSongBeenCached = suffixList.length > 0;
-    hasSongBeenCached
-        ? await handleLocalSong(suffixList)
-        : await handleOnlineSong(
-            songId ?? _currentPlayingSong['id'].toString());
+    List<String> targets = _cachedFilePaths.where((path) {
+      List<String> fragments = path.split('/');
+      return fragments[fragments.length - 1].contains(_songData['name']);
+    }).toList();
+    if (songId == null && _songData == null) return;
+    songId = songId ?? _songData['id'].toString();
+    targets.length > 0
+        ? await playCache(targets[0])
+        : await playOnline(songId.toString());
     _computedLyrics =
-        await LyricHelper(songId ?? _currentPlayingSong['id'].toString()).getLyrics();
-    persistPlayingData();
+        await LyricHelper(songId ?? _songData['id'].toString()).getLyrics();
+    cachePlayData();
   }
 
-  persistPlayingData() async {
+  cachePlayData() async {
     _preferences.setString('playlist', json.encode(_playlist));
-    _preferences.setString(
-        'currentPlayingSong', json.encode(_currentPlayingSong));
+    _preferences.setString('songData', json.encode(_songData));
   }
 
-  Future handleLocalSong(List suffixList) async {
-    final escapedFileName = _currentPlayingSong['name'].replaceAll('/', '|');
-    _songUrl = '${_appDocDir.path}/$escapedFileName.${suffixList[0]}';
-    final songFile = File(_songUrl);
-    final isFileExsits = await songFile.exists();
-    if (isFileExsits) {
-      _isLocal = true;
-      player.play(_songUrl, isLocal: true);
-    }
+  Future playCache(String path) async {
+    List<String> fragments = path.split('/');
+    final escapedName = fragments[fragments.length - 1].replaceAll('/', '|');
+    _songUrl = '${_appDocDir.path}/$escapedName';
+    _isLocal = true;
+    player.play(_songUrl, isLocal: _isLocal);
   }
 
-  Future handleOnlineSong(String songId) async {
-    const BIT_RATE = 320000;
-    Response songUrlResponse =
-        await dio.get('/song/url?id=$songId&br=$BIT_RATE');
-    _currentPlayingSongUrl = songUrlResponse.data;
-    _songUrl = songUrlResponse.data['data'][0]['url'];
-    if (_songUrl == null) {
-      this.next();
-      return;
-    }
+  Future playOnline(String songId) async {
+    const BIT_RATE = 128000;
+    _songUrlData = (await dio.post('/song/url?id=$songId&br=$BIT_RATE')).data;
+    _songUrl = _songUrlData['data'][0]['url'];
+    if (_songUrl == null) return this.next();
     player.play(_songUrl);
-    cacheCurrentSong(_songUrl);
+    String fileName = '${_songData['name']}.${_songUrlData['data'][0]['type']}';
+    cacheSongFile(_songUrl, fileName);
     notifyListeners();
+  }
+
+  Future<Null> cacheSongFile(String url, String fileName) async {
+    final escapedFileName = fileName.replaceAll('/', '|');
+    File songFile = File('${_appDocDir.path}/$escapedFileName');
+    final songBytes = await http.readBytes(url);
+    if (await songFile.exists()) return;
+    await songFile.writeAsBytes(songBytes);
+    _cachedFilePaths.add(songFile.path);
   }
 
   Future<List<dynamic>> getSuffixList(String songId) async {
     final cacheRecordFile = File('${_appDocDir.path}/cache_record.json');
-    if (!await cacheRecordFile.exists()) {
-      await cacheRecordFile.create();
-    }
+    if (!await cacheRecordFile.exists()) await cacheRecordFile.create();
     dynamic cacheRecord = await cacheRecordFile.readAsString();
     cacheRecord = cacheRecord == '' ? '{}' : cacheRecord;
     return json.decode(cacheRecord)[songId] ?? [];
-  }
-
-  Future<Null> cacheCurrentSong(String url) async {
-    final escapedFileName = _currentPlayingSong['name'].replaceAll('/', '|');
-    final songId = _currentPlayingSongUrl['data'][0]['id'];
-    final songSuffix = _currentPlayingSongUrl['data'][0]['type'];
-    final songFile = File('${_appDocDir.path}/$escapedFileName.$songSuffix');
-    final songBytes = await http.readBytes(url);
-    await songFile.writeAsBytes(songBytes);
-    final cacheRecordFile = File('${_appDocDir.path}/cache_record.json');
-    dynamic cacheRecord = await cacheRecordFile.readAsString();
-    cacheRecord = cacheRecord == '' ? Map() : json.decode(cacheRecord);
-    List suffixList = cacheRecord[songId.toString()];
-    suffixList = suffixList ?? [];
-    if (!suffixList.contains(songSuffix)) {
-      suffixList.add(songSuffix.toString());
-    }
-    cacheRecord[songId.toString()] = suffixList;
-    await cacheRecordFile.writeAsString(json.encode(cacheRecord), flush: true);
   }
 
   Future<Null> pause() async {
@@ -200,33 +179,28 @@ class PlayCenter with ChangeNotifier {
   }
 
   previous() {
-    int currentSongIndex = getSongIndex(_currentPlayingSong['id'].toString());
-    int previousSongIndex = currentSongIndex == 0
+    int songIndex = getSongIndex(_songData['id'].toString());
+    int previousSongIndex = songIndex == 0
         ? _playlist['playlist']['tracks'].length - 1
-        : currentSongIndex - 1;
-    _currentPlayingSong = _playlist['playlist']['tracks'][previousSongIndex];
+        : songIndex - 1;
+    _songData = _playlist['playlist']['tracks'][previousSongIndex];
     play(_playlist['playlist']['tracks'][previousSongIndex]['id'].toString());
   }
 
   next() {
-    int currentSongIndex = getSongIndex(_currentPlayingSong['id'].toString());
-    int nextSongIndex =
-        currentSongIndex == _playlist['playlist']['tracks'].length - 1
-            ? 0
-            : currentSongIndex + 1;
-    _currentPlayingSong = _playlist['playlist']['tracks'][nextSongIndex];
+    int songIndex = getSongIndex(_songData['id'].toString());
+    int nextSongIndex = songIndex == _playlist['playlist']['tracks'].length - 1
+        ? 0
+        : songIndex + 1;
+    _songData = _playlist['playlist']['tracks'][nextSongIndex];
     play(_playlist['playlist']['tracks'][nextSongIndex]['id'].toString());
   }
 
   int getSongIndex(String songId) {
-    int currentSongIndex;
-    Map<dynamic, dynamic> tracksMap = _playlist['playlist']['tracks'].asMap();
-    tracksMap.forEach((index, song) {
-      if (song['id'].toString() == songId) {
-        currentSongIndex = index;
-      }
-    });
-    _currentSongIndex = currentSongIndex;
-    return currentSongIndex;
+    int songIndex;
+    Map tracksMap = _playlist['playlist']['tracks'].asMap();
+    tracksMap.forEach((index, song) =>
+        songIndex = song['id'].toString() == songId ? index : songIndex);
+    return songIndex;
   }
 }

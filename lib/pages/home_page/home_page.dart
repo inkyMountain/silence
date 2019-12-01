@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:silence/store/play_center.dart';
 import 'package:silence/widgets/bottomStateBar.dart';
 import './profile_drawer.dart';
-
 import './tab_mine.dart';
 import './tab_find.dart';
 
@@ -49,7 +48,7 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   Expanded(
                     child: TabBarView(children: [TabMine(), TabFind()]),
                   ),
-                  Container(child: buildBottomStateBar(context))
+                  Container(child: BottomStateBar())
                 ])
               ]),
               drawer: ProfileDrawer(),
