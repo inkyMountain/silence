@@ -30,7 +30,7 @@ class TabMineState extends State<TabMine> with WidgetsBindingObserver {
   // 首次进入页面时请求列表，后续从store中读取。
   Future<Null> _init() async {
     final playCenter = Provider.of<Store>(context, listen: false);
-    final storedSonglists = playCenter.songlists;
+    final storedSonglists = playCenter.userSonglists;
     await readUid(); // initUid必须在
     if (storedSonglists != null) {
       _songlists = storedSonglists['playlist'];
@@ -79,8 +79,8 @@ class TabMineState extends State<TabMine> with WidgetsBindingObserver {
             dense: true,
             title: Text(computeSonglistsData[index]['name'] ?? '',
                 style: TextStyle(fontSize: 15)),
-            onTap: () => RoutesCenter.router.navigateTo(
-                context, '/songlist?id=${computeSonglistsData[index]['id']}')),
+            onTap: () => RoutesCenter.router.navigateTo(context,
+                '/songlist?id=${computeSonglistsData[index]['id']}&isUserPlaylist=true')),
         shrinkWrap: true);
   }
 

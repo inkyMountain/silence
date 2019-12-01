@@ -3,30 +3,34 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:silence/router/routes.dart';
 import 'package:silence/store/play_center.dart';
+import 'package:silence/store/store.dart';
 import 'package:silence/tools/http_service.dart';
 import 'package:silence/widgets/bottomStateBar.dart';
 
 class SonglistState extends State<Songlist> {
-  SonglistState({this.id});
+  SonglistState({this.id, this.isUserPlaylist});
 
   String id;
+  bool isUserPlaylist;
   Map<String, dynamic> _playlist;
   PlayCenter playCenter;
+  bool initilized = false;
 
   @override
   void initState() {
     super.initState();
-    initData();
     playCenter = Provider.of<PlayCenter>(context, listen: false);
+    init();
   }
 
-  initData() async {
+  init() async {
     Dio dio = await getDioInstance();
     Response response =
         await dio.post('${interfaces['playlistDetail']}?id=$id');
-    setState(() {
-      _playlist = response.data;
-    });
+    setState(() => _playlist = response.data);
+    Provider.of<Store>(context, listen: false)
+        .getSpecificPlaylist(id: id, isUserPlaylist: isUserPlaylist);
+    initilized = true;
   }
 
   @override
@@ -75,8 +79,10 @@ class SonglistState extends State<Songlist> {
 
 class Songlist extends StatefulWidget {
   final String id;
-  Songlist({this.id});
+  final bool isUserPlaylist;
+  Songlist({this.id, this.isUserPlaylist});
 
   @override
-  State<StatefulWidget> createState() => SonglistState(id: id);
+  State<StatefulWidget> createState() =>
+      SonglistState(id: id, isUserPlaylist: isUserPlaylist);
 }

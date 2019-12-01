@@ -1,7 +1,9 @@
 import 'package:dio/dio.dart';
 import 'package:fluro/fluro.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:silence/store/store.dart';
 import 'package:silence/tools/http_service.dart';
 import 'package:silence/router/routes.dart';
 
@@ -35,6 +37,7 @@ class LaunchState extends State<Launch> {
         await dio.post(interfaces['loginStatus']).catchError((error) {
       errorMessage = error.response.data;
     });
+    Provider.of<Store>(context).setUserInfo(loginStatus.data['profile']);
     return loginStatus == null ? errorMessage : loginStatus.data;
   }
 
