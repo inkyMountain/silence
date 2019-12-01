@@ -73,7 +73,8 @@ class PlayerState extends State<Player> with TickerProviderStateMixin {
         double totalHeight = 0;
         _lyricHeights
             .forEach((i, height) => totalHeight += i < index ? height : 0.0);
-        _scrollLyrics(totalHeight, totalHeight + _lyricHeights[index]);
+        _scrollLyrics(
+            start: totalHeight, end: totalHeight + _lyricHeights[index]);
         _lastLyricIndex = index;
       });
     });
@@ -96,8 +97,8 @@ class PlayerState extends State<Player> with TickerProviderStateMixin {
     if (this.mounted) setState(() {});
   }
 
-  void _scrollLyrics(double from, double to) {
-    _createAnimationCooperators(from, to, Duration(milliseconds: 500));
+  void _scrollLyrics({@required double start, @required double end}) {
+    _createAnimationCooperators(start, end, Duration(milliseconds: 500));
     animationController.forward();
   }
 

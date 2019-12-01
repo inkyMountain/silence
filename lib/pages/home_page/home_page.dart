@@ -26,33 +26,33 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
         child: DefaultTabController(
             length: tabs.length,
             child: Scaffold(
-              backgroundColor: Colors.white,
-              appBar: AppBar(
+                backgroundColor: Colors.white,
+                appBar: AppBar(
                   elevation: 0,
                   centerTitle: true,
                   title: Container(
                       padding: EdgeInsets.symmetric(horizontal: 40),
                       child: buildTabBar()),
-                  leading: Builder(
-                      builder: (BuildContext context) => IconButton(
-                          icon: Icon(Icons.menu),
-                          onPressed: () => Scaffold.of(context).openDrawer())),
-                  actions: <Widget>[
-                    IconButton(
-                        icon: Icon(Icons.search),
-                        onPressed: () =>
-                            Navigator.pushNamed(context, '/search'))
-                  ]),
-              body: Stack(children: <Widget>[
-                Column(children: <Widget>[
-                  Expanded(
-                    child: TabBarView(children: [TabMine(), TabFind()]),
-                  ),
-                  Container(child: BottomStateBar())
-                ])
-              ]),
-              drawer: ProfileDrawer(),
-            )));
+                  // leading: Builder(
+                  //     builder: (BuildContext context) => IconButton(
+                  //         icon: Icon(Icons.menu),
+                  //         onPressed: () => Scaffold.of(context).openDrawer())),
+                  // actions: <Widget>[
+                  //   IconButton(
+                  //       icon: Icon(Icons.search),
+                  //       onPressed: () =>
+                  //           Navigator.pushNamed(context, '/search'))
+                  // ]
+                ),
+                // drawer: ProfileDrawer(),
+                body: Stack(children: <Widget>[
+                  Column(children: <Widget>[
+                    Expanded(
+                      child: TabBarView(children: [TabMine(), TabFind()]),
+                    ),
+                    Container(child: BottomStateBar())
+                  ])
+                ]))));
   }
 
   Future<bool> _onWillPop() async {
