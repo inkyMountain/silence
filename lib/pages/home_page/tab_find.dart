@@ -35,20 +35,18 @@ class TabFindState extends State<TabFind> with TickerProviderStateMixin {
     return Stack(children: <Widget>[
       ListView(children: <Widget>[
         buildRecommendPlaylists(playlists),
-        // Text('ssss'),
       ])
     ]);
   }
 
   GridView buildRecommendPlaylists(Map playlists) {
-    const int totalGrids = 9;
     return GridView.builder(
         physics: NeverScrollableScrollPhysics(),
         shrinkWrap: true,
         padding: EdgeInsets.symmetric(horizontal: 10),
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 3, childAspectRatio: 0.75),
-        itemCount: totalGrids,
+        itemCount: playlists['recommend'].length,
         itemBuilder: (context, index) {
           Map playlist = playlists['recommend'][index];
           return FlatButton(
@@ -63,15 +61,13 @@ class TabFindState extends State<TabFind> with TickerProviderStateMixin {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(fontSize: 12, color: Colors.grey)));
                   final opacity = AnimatedOpacity(
-                    child: Column(
-                      children: <Widget>[
-                        ClipRRect(
-                          child: child,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        name
-                      ],
-                    ),
+                    child: Column(children: <Widget>[
+                      ClipRRect(
+                        child: child,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      name
+                    ]),
                     opacity: frame == null ? 0 : 1,
                     duration: const Duration(seconds: 1),
                     curve: Curves.easeOut,

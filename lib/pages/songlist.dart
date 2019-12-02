@@ -15,6 +15,7 @@ class SonglistState extends State<Songlist> {
   Map<String, dynamic> _playlist;
   PlayCenter playCenter;
   bool initilized = false;
+  String _coverUrl;
 
   @override
   void initState() {
@@ -28,8 +29,9 @@ class SonglistState extends State<Songlist> {
     Response response =
         await dio.post('${interfaces['playlistDetail']}?id=$id');
     setState(() => _playlist = response.data);
-    Provider.of<Store>(context, listen: false)
-        .getSpecificPlaylist(id: id, isUserPlaylist: isUserPlaylist);
+    // Map playlist = Provider.of<Store>(context, listen: false)
+    //     .getSpecificPlaylist(id: id, isUserPlaylist: isUserPlaylist);
+    // _coverUrl = playlist['coverImgUrl'];
     initilized = true;
   }
 
@@ -43,37 +45,48 @@ class SonglistState extends State<Songlist> {
 
     final scaffold = Scaffold(
         backgroundColor: Colors.white,
-        appBar: AppBar(
-          elevation: 0,
-          title: Text(_playlist['playlist']['name']),
-        ),
         body: Stack(children: <Widget>[
           Column(children: <Widget>[
             Expanded(child: buildPlaylist()),
             Container(child: BottomStateBar())
-          ])
+          ]),
+          IconButton(
+            padding: EdgeInsets.only(top: 30, left: 10),
+            icon: Icon(Icons.arrow_back),
+            onPressed: () => RoutesCenter.router.pop(context),
+          ),
         ]));
     return scaffold;
   }
 
   Widget buildPlaylist() {
-    if (_playlist.isEmpty) {
-      return Text('');
-    }
+    if (_playlist.isEmpty) return Text('');
+    final cover = Row(children: <Widget>[
+      Flexible(
+          fit: FlexFit.tight,
+          child: Image.network(_playlist['playlist']['coverImgUrl'],
+              height: 250, fit: BoxFit.cover))
+    ]);
     final listview = ListView.builder(
         itemCount:
             _playlist == null ? 0 : _playlist['playlist']['tracks'].length,
-        itemBuilder: (BuildContext context, int index) => ListTile(
-            dense: true,
-            title: Text(_playlist['playlist']['tracks'][index]['name'] ?? ''),
-            onTap: () {
-              playCenter.setPlaylist(_playlist);
-              playCenter.setCurrentPlayingSong(
-                  _playlist['playlist']['tracks'][index]);
-              final songId = _playlist['playlist']['tracks'][index]['id'];
-              RoutesCenter.router.navigateTo(context, '/player?songId=$songId');
-            }));
-    return listview;
+        itemBuilder: (BuildContext context, int index) =>
+            index == 0 ? cover : buildListTile(index - 1));
+    return MediaQuery.removePadding(
+        context: context, child: listview, removeTop: true);
+  }
+
+  Widget buildListTile(int index) {
+    return ListTile(
+        dense: true,
+        title: Text(_playlist['playlist']['tracks'][index]['name'] ?? ''),
+        onTap: () {
+          playCenter.setPlaylist(_playlist);
+          playCenter
+              .setCurrentPlayingSong(_playlist['playlist']['tracks'][index]);
+          final songId = _playlist['playlist']['tracks'][index]['id'];
+          RoutesCenter.router.navigateTo(context, '/player?songId=$songId');
+        });
   }
 }
 
