@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:silence/tools/http_service.dart';
 import 'package:silence/store/lyric_helper.dart';
+// import 'package:flutter_exoplayer/audioplayer.dart';
 
 class PlayCenter with ChangeNotifier {
   AudioPlayer player = AudioPlayer();
@@ -103,7 +104,7 @@ class PlayCenter with ChangeNotifier {
 
   /// play cache before online
   /// 外界调用play方法前，会提前设置setsongData & setPlaylist。
-  /// Todo 用户删除缓存时的处理 
+  /// Todo 用户删除缓存时的处理
   Future<Null> play([String songId]) async {
     if (_songData == null && _playlist == null) await readCachedPlayInfo();
     if (!_hasInitialized) await init();
@@ -153,14 +154,6 @@ class PlayCenter with ChangeNotifier {
     if (await songFile.exists()) return;
     await songFile.writeAsBytes(songBytes);
     _cachedFilePaths.add(songFile.path);
-  }
-
-  Future<List<dynamic>> getSuffixList(String songId) async {
-    final cacheRecordFile = File('${_appDocDir.path}/cache_record.json');
-    if (!await cacheRecordFile.exists()) await cacheRecordFile.create();
-    dynamic cacheRecord = await cacheRecordFile.readAsString();
-    cacheRecord = cacheRecord == '' ? '{}' : cacheRecord;
-    return json.decode(cacheRecord)[songId] ?? [];
   }
 
   Future<Null> pause() async {

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:silence/router/routes.dart';
 import 'package:silence/store/play_center.dart';
-import 'package:silence/store/store.dart';
 import 'package:silence/tools/http_service.dart';
 import 'package:silence/widgets/bottomStateBar.dart';
 
@@ -37,11 +36,8 @@ class SonglistState extends State<Songlist> {
 
   @override
   Widget build(BuildContext context) {
-    if (_playlist == null) {
-      return Scaffold(
-          appBar: AppBar(title: Text(''), elevation: 0),
-          body: Center(child: Text('Loading')));
-    }
+    if (_playlist == null)
+      return Scaffold(body: Center(child: Text('Loading')));
 
     final scaffold = Scaffold(
         backgroundColor: Colors.white,

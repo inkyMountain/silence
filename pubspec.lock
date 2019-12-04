@@ -22,13 +22,6 @@ packages:
       url: "https://mirrors.tuna.tsinghua.edu.cn/dart-pub"
     source: hosted
     version: "2.3.0"
-  audioplayer:
-    dependency: "direct main"
-    description:
-      name: audioplayer
-      url: "https://mirrors.tuna.tsinghua.edu.cn/dart-pub"
-    source: hosted
-    version: "0.5.2"
   boolean_selector:
     dependency: transitive
     description:
@@ -111,6 +104,13 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  flutter_exoplayer:
+    dependency: "direct main"
+    description:
+      name: flutter_exoplayer
+      url: "https://mirrors.tuna.tsinghua.edu.cn/dart-pub"
+    source: hosted
+    version: "0.5.4"
   flutter_launcher_icons:
     dependency: "direct main"
     description:
@@ -282,6 +282,13 @@ packages:
       url: "https://mirrors.tuna.tsinghua.edu.cn/dart-pub"
     source: hosted
     version: "1.1.6"
+  uuid:
+    dependency: transitive
+    description:
+      name: uuid
+      url: "https://mirrors.tuna.tsinghua.edu.cn/dart-pub"
+    source: hosted
+    version: "2.0.4"
   vector_math:
     dependency: transitive
     description:
