@@ -14,7 +14,6 @@ class SonglistState extends State<Songlist> {
   Map<String, dynamic> _playlist;
   PlayCenter playCenter;
   bool initilized = false;
-  String _coverUrl;
 
   @override
   void initState() {
@@ -28,9 +27,6 @@ class SonglistState extends State<Songlist> {
     Response response =
         await dio.post('${interfaces['playlistDetail']}?id=$id');
     setState(() => _playlist = response.data);
-    // Map playlist = Provider.of<Store>(context, listen: false)
-    //     .getSpecificPlaylist(id: id, isUserPlaylist: isUserPlaylist);
-    // _coverUrl = playlist['coverImgUrl'];
     initilized = true;
   }
 
@@ -38,7 +34,6 @@ class SonglistState extends State<Songlist> {
   Widget build(BuildContext context) {
     if (_playlist == null)
       return Scaffold(body: Center(child: Text('Loading')));
-
     final scaffold = Scaffold(
         backgroundColor: Colors.white,
         body: Stack(children: <Widget>[
@@ -46,23 +41,41 @@ class SonglistState extends State<Songlist> {
             Expanded(child: buildPlaylist()),
             Container(child: BottomStateBar())
           ]),
-          IconButton(
-            padding: EdgeInsets.only(top: 30, left: 10),
-            icon: Icon(Icons.arrow_back),
-            onPressed: () => RoutesCenter.router.pop(context),
-          ),
+          Positioned(child: BackButton(), left: 15, top: 30)
         ]));
     return scaffold;
   }
 
   Widget buildPlaylist() {
     if (_playlist.isEmpty) return Text('');
-    final cover = Row(children: <Widget>[
-      Flexible(
-          fit: FlexFit.tight,
-          child: Image.network(_playlist['playlist']['coverImgUrl'],
-              height: 250, fit: BoxFit.cover))
-    ]);
+    final cover = Image.network(_playlist['playlist']['coverImgUrl'],
+        height: 250, fit: BoxFit.cover,
+        frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+      return AnimatedOpacity(
+        child: Stack(children: <Widget>[
+          Row(children: <Widget>[
+            Flexible(
+                fit: FlexFit.tight,
+                child: ClipRRect(
+                    child: child, borderRadius: BorderRadius.circular(10)))
+          ]),
+          Container(
+              width: MediaQuery.of(context).size.width,
+              height: 250,
+              decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                      begin: Alignment(0, -1),
+                      end: Alignment(0, 1),
+                      colors: <Color>[
+                    const Color(0x99ffffff),
+                    const Color(0x00ffffff)
+                  ])))
+        ]),
+        opacity: frame == null ? 0 : 1,
+        duration: const Duration(seconds: 1),
+        curve: Curves.easeOut,
+      );
+    });
     final listview = ListView.builder(
         itemCount:
             _playlist == null ? 0 : _playlist['playlist']['tracks'].length,

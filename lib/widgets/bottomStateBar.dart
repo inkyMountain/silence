@@ -1,4 +1,4 @@
-import 'package:audioplayer/audioplayer.dart';
+import 'package:flutter_exoplayer/audioplayer.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:silence/router/routes.dart';
@@ -22,7 +22,7 @@ class BottomStateBar extends StatelessWidget {
                   padding: EdgeInsets.all(0),
                   child: Row(children: <Widget>[
                     ClipRRect(
-                      child: Image.network(coverUrl,
+                      child: Image.network(coverUrl ?? '',
                           width: 40, height: 40, fit: BoxFit.cover),
                       borderRadius: BorderRadius.circular(5.0),
                     ),
@@ -38,11 +38,11 @@ class BottomStateBar extends StatelessWidget {
                       RoutesCenter.router.navigateTo(context, '/player'))),
           IconButton(
               icon: Icon(Provider.of<PlayCenter>(context).playerState ==
-                      AudioPlayerState.PLAYING
+                      PlayerState.PLAYING
                   ? Icons.pause
                   : Icons.play_arrow),
               onPressed: () => Provider.of<PlayCenter>(context).playerState ==
-                      AudioPlayerState.PLAYING
+                      PlayerState.PLAYING
                   ? playCenter.pause()
                   : playCenter.resume())
         ]));

@@ -1,18 +1,18 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'package:audioplayer/audioplayer.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_exoplayer/audio_notification.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:silence/tools/http_service.dart';
 import 'package:silence/store/lyric_helper.dart';
-// import 'package:flutter_exoplayer/audioplayer.dart';
+import 'package:flutter_exoplayer/audioplayer.dart';
 
 class PlayCenter with ChangeNotifier {
-  AudioPlayer player = AudioPlayer();
+  AudioPlayer _player;
   Duration duration;
   Duration position;
   bool _hasInitialized = false;
@@ -23,17 +23,16 @@ class PlayCenter with ChangeNotifier {
   SharedPreferences _preferences;
   String _songUrl;
   StreamSubscription _positionSubscription;
-  StreamSubscription _audioPlayerStateSubscription;
   Map<dynamic, dynamic> _playlist;
   List<Map<String, dynamic>> _positionListeners = [];
   Map<String, List<Map>> _computedLyrics;
-  bool _isLocal = false;
   Directory _appDocDir;
   List<String> _cachedFilePaths = [];
+  PlayerState _playerState;
 
   get currentPlayingSong => _songData;
   get playlist => _playlist;
-  get playerState => player == null ? AudioPlayerState.STOPPED : player.state;
+  get playerState => _player == null ? PlayerState.STOPPED : _playerState;
   get lyrics => _computedLyrics;
   get songIndex => getSongIndex(currentPlayingSong['id'].toString());
 
@@ -41,8 +40,32 @@ class PlayCenter with ChangeNotifier {
   void dispose() {
     super.dispose();
     _positionSubscription.cancel();
-    _audioPlayerStateSubscription.cancel();
-    player.stop();
+    _player.stop();
+  }
+
+  /// play cache before online
+  /// 外界调用play方法前，会提前设置setsongData & setPlaylist。
+  Future<Null> play([String songId]) async {
+    print('play-=---------------');
+    if (_songData == null && _playlist == null) await readCachedPlayInfo();
+    if (_player == null) _player = AudioPlayer();
+    if (!_hasInitialized) await init();
+    if (_player != null) _player.release();
+    List<String> targets = _cachedFilePaths
+        .where((path) => path
+            .split('/')
+            .last
+            .replaceAll('/', '|')
+            .contains(_songData['name']))
+        .toList();
+    if (songId == null && _songData == null) return;
+    songId = songId ?? _songData['id'].toString();
+    targets.length > 0
+        ? await playCache(targets.first)
+        : await playOnline(songId.toString());
+    _computedLyrics = await LyricHelper(songId).getLyrics();
+    _preferences.setString('playlist', json.encode(_playlist));
+    _preferences.setString('songData', json.encode(_songData));
   }
 
   void setPlaylist(Map<dynamic, dynamic> playlist) {
@@ -73,24 +96,33 @@ class PlayCenter with ChangeNotifier {
   }
 
   void _addPlayerListeners() {
-    player.onAudioPositionChanged.listen((Duration position) {
-      this.position = position;
-      _positionListeners.forEach((map) {
-        map['listener'](position);
-      });
+    _player.onDurationChanged.listen((Duration d) {});
+
+    _player.onAudioPositionChanged.listen((Duration p) {
+      _positionListeners.forEach((map) => map['listener'](p));
       notifyListeners();
     });
-    final onPlayError = (msg) {
+
+    _player.onPlayerStateChanged.listen((PlayerState s) {
+      _playerState = s;
+      if (s == PlayerState.COMPLETED) next();
+      notifyListeners();
+    });
+
+    _player.onPlayerCompletion.listen((event) => next());
+
+    _player.onAudioSessionIdChange.listen((audioSessionId) {
+      print("audio Session Id: $audioSessionId");
+    });
+
+    _player.onCurrentAudioIndexChanged.listen((index) {});
+
+    _player.onPlayerError.listen((msg) {
+      print('player ERROR : $msg');
       duration = Duration(seconds: 0);
       position = Duration(seconds: 0);
       next();
-      notifyListeners();
-    };
-    _audioPlayerStateSubscription = player.onPlayerStateChanged.listen((state) {
-      if (state == AudioPlayerState.PLAYING) this.duration = player.duration;
-      if (state == AudioPlayerState.COMPLETED) next();
-      notifyListeners();
-    }, onError: onPlayError);
+    });
   }
 
   // check duplicate before put in
@@ -102,38 +134,14 @@ class PlayCenter with ChangeNotifier {
         : _positionListeners.add({'source': source, 'listener': listener});
   }
 
-  /// play cache before online
-  /// 外界调用play方法前，会提前设置setsongData & setPlaylist。
-  /// Todo 用户删除缓存时的处理
-  Future<Null> play([String songId]) async {
-    if (_songData == null && _playlist == null) await readCachedPlayInfo();
-    if (!_hasInitialized) await init();
-    await player.stop();
-    List<String> targets = _cachedFilePaths.where((path) {
-      List<String> fragments = path.split('/');
-      return fragments[fragments.length - 1].contains(_songData['name']);
-    }).toList();
-    if (songId == null && _songData == null) return;
-    songId = songId ?? _songData['id'].toString();
-    targets.length > 0
-        ? await playCache(targets[0])
-        : await playOnline(songId.toString());
-    _computedLyrics =
-        await LyricHelper(songId ?? _songData['id'].toString()).getLyrics();
-    cachePlayData();
-  }
-
-  cachePlayData() async {
-    _preferences.setString('playlist', json.encode(_playlist));
-    _preferences.setString('songData', json.encode(_songData));
-  }
-
   Future playCache(String path) async {
-    List<String> fragments = path.split('/');
-    final escapedName = fragments[fragments.length - 1].replaceAll('/', '|');
+    final escapedName = path.split('/').last.replaceAll('/', '|');
     _songUrl = '${_appDocDir.path}/$escapedName';
-    _isLocal = true;
-    player.play(_songUrl, isLocal: _isLocal);
+    _player.play(_songUrl,
+        respectAudioFocus: true,
+        playerMode: PlayerMode.FOREGROUND,
+        audioNotification: AudioNotification(
+            title: 'This is silence', smallIconFileName: 'icon'));
   }
 
   Future playOnline(String songId) async {
@@ -141,7 +149,10 @@ class PlayCenter with ChangeNotifier {
     _songUrlData = (await dio.post('/song/url?id=$songId&br=$BIT_RATE')).data;
     _songUrl = _songUrlData['data'][0]['url'];
     if (_songUrl == null) return this.next();
-    player.play(_songUrl);
+    _player.play(_songUrl,
+        respectAudioFocus: true,
+        playerMode: PlayerMode.FOREGROUND,
+        audioNotification: AudioNotification(smallIconFileName: 'icon'));
     String fileName = '${_songData['name']}.${_songUrlData['data'][0]['type']}';
     cacheSongFile(_songUrl, fileName);
     notifyListeners();
@@ -157,17 +168,17 @@ class PlayCenter with ChangeNotifier {
   }
 
   Future<Null> pause() async {
-    await player.pause();
+    await _player.pause();
     notifyListeners();
   }
 
   Future<Null> resume() async {
-    await player.play(_songUrl, isLocal: _isLocal);
+    await _player.resume();
     notifyListeners();
   }
 
   Future<Null> stop() async {
-    await player.stop();
+    await _player.stop();
     notifyListeners();
   }
 
@@ -181,6 +192,7 @@ class PlayCenter with ChangeNotifier {
   }
 
   next() {
+    print('next-=---------------');
     int songIndex = getSongIndex(_songData['id'].toString());
     int nextSongIndex = songIndex == _playlist['playlist']['tracks'].length - 1
         ? 0

@@ -37,7 +37,9 @@ class LaunchState extends State<Launch> {
         await dio.post(interfaces['loginStatus']).catchError((error) {
       errorMessage = error.response.data;
     });
-    Provider.of<Store>(context).setUserInfo(loginStatus.data['profile']);
+    if (loginStatus.hashCode == 200) {
+      Provider.of<Store>(context).setUserInfo(loginStatus.data['profile']);
+    }
     return loginStatus == null ? errorMessage : loginStatus.data;
   }
 
@@ -49,20 +51,17 @@ class LaunchState extends State<Launch> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
               Flexible(
-                fit: FlexFit.tight,
-                flex: 1,
-                child: Column(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: <Widget>[
-                      Text(
-                        'Silence',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 50,
-                            fontWeight: FontWeight.w400),
-                      )
-                    ]),
-              ),
+                  fit: FlexFit.tight,
+                  flex: 1,
+                  child: Column(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: <Widget>[
+                        Text('Silence',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 50,
+                                fontWeight: FontWeight.w400))
+                      ])),
               Flexible(flex: 2, fit: FlexFit.tight, child: Text(''))
             ]));
   }

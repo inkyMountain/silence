@@ -19,7 +19,7 @@ Handler loginRouteHandler = Handler(
 
 Handler playerRouteHandler = Handler(
     handlerFunc: (BuildContext context, Map<String, List<String>> params) {
-  return Player(songId: params['songId'] == null ? null : params['songId'][0]);
+  return PlayerPage(songId: params['songId'] == null ? null : params['songId'][0]);
 });
 
 Handler songlistRouteHandler = Handler(

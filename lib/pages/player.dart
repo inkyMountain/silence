@@ -1,4 +1,4 @@
-import 'package:audioplayer/audioplayer.dart';
+import 'package:flutter_exoplayer/audioplayer.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -8,8 +8,8 @@ import 'package:silence/store/play_center.dart';
 import 'package:silence/tools/calc_box_size.dart';
 import 'package:silence/tools/http_service.dart';
 
-class PlayerState extends State<Player> with TickerProviderStateMixin {
-  PlayerState(this._songId);
+class PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
+  PlayerPageState(this._songId);
 
   // Data
   String _songId;
@@ -226,12 +226,12 @@ class PlayerState extends State<Player> with TickerProviderStateMixin {
                   }),
               IconButton(
                   icon: Icon(Provider.of<PlayCenter>(context).playerState ==
-                          AudioPlayerState.PLAYING
+                          PlayerState.PLAYING
                       ? Icons.pause
                       : Icons.play_arrow),
                   onPressed: () =>
                       Provider.of<PlayCenter>(context).playerState ==
-                              AudioPlayerState.PLAYING
+                              PlayerState.PLAYING
                           ? playCenter.pause()
                           : playCenter.resume()),
               IconButton(
@@ -273,11 +273,11 @@ class PlayerState extends State<Player> with TickerProviderStateMixin {
   }
 }
 
-class Player extends StatefulWidget {
-  Player({this.songId});
+class PlayerPage extends StatefulWidget {
+  PlayerPage({this.songId});
 
   final songId;
 
   @override
-  State<StatefulWidget> createState() => PlayerState(songId);
+  State<StatefulWidget> createState() => PlayerPageState(songId);
 }
