@@ -56,7 +56,9 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   Future<bool> _onWillPop() async {
-    await Provider.of<PlayCenter>(context, listen: false).stop();
+    final playCenter = Provider.of<PlayCenter>(context, listen: false);
+    await playCenter.stop();
+    await playCenter.release();
     return true;
   }
 

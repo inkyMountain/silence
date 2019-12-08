@@ -34,7 +34,7 @@ class PlayCenter with ChangeNotifier {
   get playlist => _playlist;
   get playerState => _player == null ? PlayerState.STOPPED : _playerState;
   get lyrics => _computedLyrics;
-  get songIndex => getSongIndex(currentPlayingSong['id'].toString());
+  get songIndex => getSongIndex(_songData['id'].toString());
 
   @override
   void dispose() {
@@ -46,7 +46,6 @@ class PlayCenter with ChangeNotifier {
   /// play cache before online
   /// 外界调用play方法前，会提前设置setsongData & setPlaylist。
   Future<Null> play([String songId]) async {
-    print('play-=---------------');
     if (_songData == null && _playlist == null) await readCachedPlayInfo();
     if (_player == null) _player = AudioPlayer();
     if (!_hasInitialized) await init();
@@ -182,6 +181,10 @@ class PlayCenter with ChangeNotifier {
     notifyListeners();
   }
 
+  release() async {
+    await _player.release();
+  }
+
   previous() {
     int songIndex = getSongIndex(_songData['id'].toString());
     int previousSongIndex = songIndex == 0
@@ -192,7 +195,6 @@ class PlayCenter with ChangeNotifier {
   }
 
   next() {
-    print('next-=---------------');
     int songIndex = getSongIndex(_songData['id'].toString());
     int nextSongIndex = songIndex == _playlist['playlist']['tracks'].length - 1
         ? 0

@@ -21,6 +21,7 @@ class LaunchState extends State<Launch> {
     final preferences = await SharedPreferences.getInstance();
     if (isLogin['code'] == 200) {
       await preferences.setInt('uid', isLogin['profile']['userId']);
+      await Provider.of<Store>(context).fetchInitData();
       RoutesCenter.router.navigateTo(context, '/home',
           replace: true, transition: TransitionType.fadeIn);
     } else {
@@ -32,15 +33,13 @@ class LaunchState extends State<Launch> {
 
   Future<dynamic> getLoginStatus() async {
     Dio dio = await getDioInstance();
-    var errorMessage;
-    var loginStatus =
-        await dio.post(interfaces['loginStatus']).catchError((error) {
-      errorMessage = error.response.data;
-    });
-    if (loginStatus.hashCode == 200) {
+    final loginStatus = await dio
+        .post(interfaces['loginStatus'])
+        .catchError((error) => error.response);
+    if (loginStatus.statusCode == 200) {
       Provider.of<Store>(context).setUserInfo(loginStatus.data['profile']);
     }
-    return loginStatus == null ? errorMessage : loginStatus.data;
+    return loginStatus.data;
   }
 
   @override

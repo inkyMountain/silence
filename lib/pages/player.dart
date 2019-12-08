@@ -5,6 +5,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:provider/provider.dart';
 
 import 'package:silence/store/play_center.dart';
+import 'package:silence/store/store.dart';
 import 'package:silence/tools/calc_box_size.dart';
 import 'package:silence/tools/http_service.dart';
 
@@ -201,29 +202,42 @@ class PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
             height: 1.5,
             color: index == _lastLyricIndex ? Colors.blue : Colors.black));
     List<Widget> list = [buildText(original)];
-    if (translation != null && translation != '')
+    if (translation != null && translation != '') {
       list.add(buildText(translation));
+    }
     return list;
   }
 
   Widget buildControlsButtons() {
+    final playCenter = Provider.of<PlayCenter>(context);
+    final store = Provider.of<Store>(context);
+    String songId = playCenter.currentPlayingSong['id'].toString();
+    bool isLiked = store.isThisSongBeenLiked(songId);
     return Container(
         padding: EdgeInsets.only(bottom: 40, left: 50, right: 50),
         child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: <Widget>[
               IconButton(
-                  icon: Icon(Icons.favorite_border),
-                  onPressed: () {
-                    final songId = Provider.of<PlayCenter>(context)
-                        .currentPlayingSong['id'];
-                    dio.post('${interfaces['like']}?id=$songId&like=true');
+                  icon: Icon(isLiked ? Icons.favorite : Icons.favorite_border),
+                  onPressed: () async {
+                    Response likeResponse = await dio.post(interfaces['like'],
+                        queryParameters: {
+                          'id': songId,
+                          'like': !isLiked,
+                          'timestamp': DateTime.now()
+                        });
+                    if (likeResponse.statusCode == 200 && !isLiked) {
+                      store.addLikedSong(playCenter.currentPlayingSong);
+                    }
+                    if (likeResponse.statusCode == 200 && isLiked) {
+                      store.removeLikedSong(songId);
+                    }
+                    //
                   }),
               IconButton(
                   icon: Icon(Icons.arrow_back),
-                  onPressed: () {
-                    playCenter.previous();
-                  }),
+                  onPressed: () => playCenter.previous()),
               IconButton(
                   icon: Icon(Provider.of<PlayCenter>(context).playerState ==
                           PlayerState.PLAYING

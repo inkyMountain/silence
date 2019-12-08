@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:silence/router/routes.dart';
 import 'package:silence/store/play_center.dart';
+import 'package:silence/store/store.dart';
 import 'package:silence/tools/http_service.dart';
 import 'package:silence/widgets/bottomStateBar.dart';
 
@@ -14,6 +15,7 @@ class SonglistState extends State<Songlist> {
   Map<String, dynamic> _playlist;
   PlayCenter playCenter;
   bool initilized = false;
+  Dio _dio;
 
   @override
   void initState() {
@@ -23,9 +25,9 @@ class SonglistState extends State<Songlist> {
   }
 
   init() async {
-    Dio dio = await getDioInstance();
+    _dio = await getDioInstance();
     Response response =
-        await dio.post('${interfaces['playlistDetail']}?id=$id');
+        await _dio.post('${interfaces['playlistDetail']}?id=$id');
     setState(() => _playlist = response.data);
     initilized = true;
   }
@@ -47,6 +49,8 @@ class SonglistState extends State<Songlist> {
   }
 
   Widget buildPlaylist() {
+    final store = Provider.of<Store>(context);
+    bool isLiked = store.isThisPlaylistBeenLiked(id);
     if (_playlist.isEmpty) return Text('');
     final cover = Image.network(_playlist['playlist']['coverImgUrl'],
         height: 250, fit: BoxFit.cover,
@@ -69,7 +73,25 @@ class SonglistState extends State<Songlist> {
                       colors: <Color>[
                     const Color(0x99ffffff),
                     const Color(0x00ffffff)
-                  ])))
+                  ]))),
+          Positioned(
+              right: 15,
+              top: 30,
+              child: IconButton(
+                  icon: isLiked
+                      ? Icon(Icons.favorite, color: Color(0x66ff928b))
+                      : Icon(Icons.favorite_border, color: Color(0x66000000)),
+                  onPressed: () async {
+                    Response likeResponse = await _dio
+                        .post(interfaces['likePlaylist'], queryParameters: {
+                      't': isLiked ? 2 : 1,
+                      'id': id,
+                      'timestamp': DateTime.now()
+                    }).catchError((error) => error.response);
+                    if (likeResponse.statusCode == 200) {
+                      store.fetchInitData();
+                    }
+                  }))
         ]),
         opacity: frame == null ? 0 : 1,
         duration: const Duration(seconds: 1),

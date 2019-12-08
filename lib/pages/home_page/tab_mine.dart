@@ -1,20 +1,13 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
 import 'package:silence/router/routes.dart';
 import 'package:silence/store/store.dart';
-import 'package:silence/tools/http_service.dart';
 
 class TabMineState extends State<TabMine> with WidgetsBindingObserver {
-  List<dynamic> _songlists;
   Map<String, bool> _songlistFoldConfig = {
-    'userSonglist': false,
-    'likedSonglist': false,
+    'userCreated': false,
+    'liked': false,
   };
-
-  int _uid;
 
   @override
   dispose() {
@@ -24,63 +17,32 @@ class TabMineState extends State<TabMine> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
-    _init();
-  }
-
-  // 首次进入页面时请求列表，后续从store中读取。
-  Future<Null> _init() async {
-    final playCenter = Provider.of<Store>(context, listen: false);
-    final storedSonglists = playCenter.userSonglists;
-    await readUid(); // initUid必须在
-    if (storedSonglists != null) {
-      _songlists = storedSonglists['playlist'];
-    } else {
-      final requestedSonglists = await _requestSonglists();
-      playCenter.setSonglists(requestedSonglists);
-      _songlists = requestedSonglists['playlist'];
-    }
-    setState(() {});
-  }
-
-  Future<void> readUid() async {
-    final preferences = await SharedPreferences.getInstance();
-    _uid = preferences.getInt("uid");
-  }
-
-  Future<dynamic> _requestSonglists() async {
-    Dio dio = await getDioInstance();
-    Response songlistsResponse =
-        await dio.post('${interfaces['userPlaylist']}?uid=$_uid');
-    return songlistsResponse.data;
-  }
-
-  // listType == 'liked'  用户收藏歌单
-  // listType == 'user'   用户自创建歌单
-  List<dynamic> _computeSonglistsData({String listType}) {
-    return _songlists == null
-        ? [{}]
-        : _songlists
-            .where((songlist) => listType == 'liked'
-                ? (!_songlistFoldConfig['likedSonglist'] &&
-                    songlist['creator']['userId'] != _uid)
-                : (!_songlistFoldConfig['userSonglist'] &&
-                    songlist['creator']['userId'] == _uid))
-            .toList();
   }
 
   Widget buildSonglists({String listType}) {
-    final computeSonglistsData = _computeSonglistsData(listType: listType);
+    final store = Provider.of<Store>(context);
+    List songlists = listType == 'liked'
+        ? store.likedSonglists as List
+        : store.userCreatedSonglists as List;
+    songlists = _songlistFoldConfig[listType] ? [] : songlists;
     return ListView.builder(
         padding: EdgeInsets.all(0),
         physics: const NeverScrollableScrollPhysics(),
-        itemCount:
-            computeSonglistsData == null ? 0 : computeSonglistsData.length,
+        itemCount: songlists.length,
         itemBuilder: (BuildContext context, int index) => ListTile(
             dense: true,
-            title: Text(computeSonglistsData[index]['name'] ?? '',
-                style: TextStyle(fontSize: 15)),
+            title: Text(songlists[index]['name'] ?? '',
+                style: TextStyle(fontSize: 14)),
+
+            // contentPadding: EdgeInsets.symmetric(vertical: 5),
+            /// 歌单封面
+            // leading: ClipRRect(
+            //   borderRadius: BorderRadius.circular(5),
+            //   child: Image.network(songlists[index]['coverImgUrl'],
+            //       width: 45, height: 45),
+            // ),
             onTap: () => RoutesCenter.router.navigateTo(context,
-                '/songlist?id=${computeSonglistsData[index]['id']}&isUserPlaylist=true')),
+                '/songlist?id=${songlists[index]['id']}&isUserPlaylist=true')),
         shrinkWrap: true);
   }
 
@@ -99,9 +61,9 @@ class TabMineState extends State<TabMine> with WidgetsBindingObserver {
                       Widget>[
                 Expanded(
                     child: Container(
-                  padding: EdgeInsets.symmetric(vertical: 15, horizontal: 32),
+                  padding: EdgeInsets.symmetric(vertical: 12, horizontal: 32),
                   decoration: BoxDecoration(
-                      color: isFolded ? Color(0xffe0dfdf) : Color(0xfff5f5f5),
+                      color: isFolded ? Color(0xffe0dfdf) : Color(0xfff9f9f9),
                       border: Border(
                           left: isFolded
                               ? BorderSide(color: Color(0xffababab), width: 5)
@@ -119,32 +81,24 @@ class TabMineState extends State<TabMine> with WidgetsBindingObserver {
         ]));
   }
 
-  bool _isSonglistsEmpty() =>
-      _computeSonglistsData(listType: 'user').length == 1 &&
-      _computeSonglistsData(listType: 'liked').length == 1;
-
   @override
   Widget build(BuildContext context) {
-    Widget userSonglists = buildSonglists(listType: 'liked');
-    Widget likedSonglists = buildSonglists(listType: 'user');
-    if (_isSonglistsEmpty()) {
-      return Center(child: Text(''));
-    }
+    Widget userCreateds = buildSonglists(listType: 'userCreated');
+    Widget likeds = buildSonglists(listType: 'liked');
 
     return ListView(children: <Widget>[
       Column(children: <Widget>[
-        buildListHeader(likedSonglists,
+        buildListHeader(userCreateds,
             listTitle: '我创建的歌单',
-            isFolded: _songlistFoldConfig['userSonglist'], onTapHeader: () {
-          _songlistFoldConfig['userSonglist'] =
-              !_songlistFoldConfig['userSonglist'];
+            isFolded: _songlistFoldConfig['userCreated'], onTapHeader: () {
+          _songlistFoldConfig['userCreated'] =
+              !_songlistFoldConfig['userCreated'];
           setState(() {});
         }),
-        buildListHeader(userSonglists,
+        buildListHeader(likeds,
             listTitle: '我的收藏',
-            isFolded: _songlistFoldConfig['likedSonglist'], onTapHeader: () {
-          _songlistFoldConfig['likedSonglist'] =
-              !_songlistFoldConfig['likedSonglist'];
+            isFolded: _songlistFoldConfig['liked'], onTapHeader: () {
+          _songlistFoldConfig['liked'] = !_songlistFoldConfig['liked'];
           setState(() {});
         })
       ])

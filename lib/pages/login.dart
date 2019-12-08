@@ -16,7 +16,6 @@ class LoginState extends State<Login> {
   @override
   void initState() {
     super.initState();
-    // checkLoginStatus();
     attachListeners();
   }
 
@@ -27,21 +26,12 @@ class LoginState extends State<Login> {
     passwordController.dispose();
   }
 
-  checkLoginStatus() async {
-    SharedPreferences preferences = await SharedPreferences.getInstance();
-    final uid = preferences.getInt('uid');
-    if (uid != null) {
-      RoutesCenter.router.navigateTo(context, '/home');
-    }
-  }
-
   Future login({String phone, String password}) async {
     Dio dio = await getDioInstance();
     Response loginResult = await dio
         .post('${interfaces['phoneLogin']}?phone=$phone&password=$password')
         .catchError((error) => error.response);
     Map loginData = loginResult.data;
-    print(loginData.toString());
     if (loginData['code'] == 200) {
       final preferences = await SharedPreferences.getInstance();
       await preferences.setInt("uid", loginData['account']['id']);
@@ -147,9 +137,7 @@ class LoginState extends State<Login> {
   }
 
   void attachListeners() {
-    accountController.addListener(() {
-      print(accountController.text);
-    });
+    accountController.addListener(() {});
     passwordController.addListener(() {});
   }
 
@@ -161,13 +149,10 @@ class LoginState extends State<Login> {
       showErrorMessage(loginData['msg'] ?? loginData['message']);
       return;
     }
-    final userInfo = {
-      'account': loginData['account'],
-      'profile': loginData['profile']
-    };
-    Provider.of<Store>(context, listen: false).setUserInfo(userInfo);
-    RoutesCenter.router.navigateTo(context, '/home',
-        transition: TransitionType.native, replace: true);
+    Provider.of<Store>(context, listen: false)
+        .setUserInfo(loginData['profile']);
+    RoutesCenter.router.navigateTo(context, '/launch',
+        transition: TransitionType.fadeIn, replace: true);
   }
 }
 

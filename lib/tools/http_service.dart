@@ -36,4 +36,5 @@ Map<String, String> interfaces = {
   'like': '/like',
   'recommendPlaylists': '/recommend/resource',
   'recommendSongs': '/recommend/songs',
+  'likePlaylist': '/playlist/subscribe',
 };
