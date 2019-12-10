@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:fluro/fluro.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:silence/router/routes.dart';
@@ -22,20 +23,22 @@ class TabFindState extends State<TabFind> with TickerProviderStateMixin {
         (store.recommendPlaylists as Map).length == 0 ||
         (store.recommendSongs as Map).length == 0;
     if (!needRequest) return;
-    Map recommendPlaylists =
-        (await _dio.post(interfaces['recommendPlaylists'])).data;
-    Map recommendSongs = (await _dio.post(interfaces['recommendSongs'])).data;
-    store.setRecommends(playlists: recommendPlaylists, songs: recommendSongs);
+    final results = await Future.wait([
+      _dio.post(interfaces['recommendPlaylists']),
+      // _dio.post(interfaces['recommendSongs'])
+    ]);
+    store.setRecommends(playlists: results[0].data);
   }
 
   @override
   Widget build(BuildContext context) {
     Map playlists = Provider.of<Store>(context).recommendPlaylists;
-    if (playlists == null) return Center(child: Text('loading'));
     return Stack(children: <Widget>[
       ListView(children: <Widget>[
         buildDailyRecommend(),
-        buildRecommendPlaylists(playlists),
+        playlists == null || playlists.length == 0
+            ? Center(child: Text('loading'))
+            : buildRecommendPlaylists(playlists),
       ])
     ]);
   }
@@ -45,20 +48,31 @@ class TabFindState extends State<TabFind> with TickerProviderStateMixin {
         padding: EdgeInsets.only(left: 15, right: 15, bottom: 20, top: 5),
         child: ClipRRect(
             borderRadius: BorderRadius.circular(10),
-            child: Container(
-                height: 150,
-                decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                        colors: [Color(0xff2193b0), Color(0xff6dd5ed)])),
-                child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 30, vertical: 40),
-                    child: Text(
-                      '每日推荐',
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w400,
-                          fontSize: 30),
-                    )))));
+            child: FlatButton(
+              padding: EdgeInsets.all(0),
+              child: Row(children: <Widget>[
+                Flexible(
+                    fit: FlexFit.tight,
+                    child: Container(
+                        padding:
+                            EdgeInsets.symmetric(vertical: 60, horizontal: 40),
+                        decoration: BoxDecoration(
+                            gradient: LinearGradient(colors: [
+                          Color(0xff2193b0),
+                          Color(0xff6dd5ed)
+                        ])),
+                        child: Text(
+                          '每日推荐',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w400,
+                              fontSize: 30),
+                        )))
+              ]),
+              onPressed: () => RoutesCenter.router.navigateTo(
+                  context, '/dailyRecommend',
+                  transition: TransitionType.fadeIn),
+            )));
   }
 
   GridView buildRecommendPlaylists(Map playlists) {

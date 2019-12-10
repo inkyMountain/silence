@@ -16,5 +16,6 @@ class RoutesCenter {
     router.define('/player', handler: playerRouteHandler);
     router.define('/songlist', handler: songlistRouteHandler);
     router.define('/search', handler: searchRouteHandler);
+    router.define('/dailyRecommend', handler: dailyRecommendRouteHandler);
   }
 }

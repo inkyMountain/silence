@@ -4,4 +4,5 @@ export './songlist.dart';
 export './search.dart';
 export './login.dart';
 export './launch.dart';
+export './daily_recommend.dart';
 export './404.dart';

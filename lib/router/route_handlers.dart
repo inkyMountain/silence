@@ -33,6 +33,10 @@ Handler searchRouteHandler = Handler(
     handlerFunc: (BuildContext context, Map<String, List<String>> params) {
   return Search();
 });
+Handler dailyRecommendRouteHandler = Handler(
+    handlerFunc: (BuildContext context, Map<String, List<String>> params) {
+  return DailyRecommend();
+});
 
 Handler notFoundHandler = Handler(
     handlerFunc: (BuildContext context, Map<String, List<String>> params) {

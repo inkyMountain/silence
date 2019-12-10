@@ -6,7 +6,11 @@ import 'package:silence/tools/http_service.dart';
 class Store with ChangeNotifier {
   Map<String, dynamic> _userSonglists = {};
   Map<String, dynamic> _userInfo;
-  Map<String, Map> _recommends = {};
+  // tab_find中请求并设置
+  //日推歌曲： _recommends['playlists']['recommend'].where()
+  // 播放中心的playlist原先是这个结构：_playlist['playlist']['tracks']
+  // 所以需要把每日推荐也包装成相同的结构，这样可以少一些改动。真坑！
+  Map<String, Map> _recommends = {'playlists': {}, 'songs': {}};
   Map<String, dynamic> needUpdate = {'songlists': false};
   Map _likedSonglistDetail;
   Dio _dio;
@@ -73,11 +77,19 @@ class Store with ChangeNotifier {
   // 获取所有初始化需要的数据，比如用户歌单。
   fetchInitData() async {
     _dio = _dio ?? await getDioInstance();
-    await _fetchSonglists();
+    await readUid();
+    await Future.wait([_fetchSonglists(), _fetchDailyRecommend()]);
+  }
+
+  Future<Null> _fetchDailyRecommend() async {
+    // _dailyRecommends['recommend'].where()
+    // 播放中心的playlist原先是这个结构：_playlist['playlist']['tracks']
+    // 所以需要把每日推荐也包装成相同的结构，这样可以少一些改动。真坑！
+    final response = await _dio.post('${interfaces['recommendSongs']}');
+    _recommends['songs'] = response.data;
   }
 
   Future<Null> _fetchSonglists() async {
-    await readUid();
     Response songlistsResponse = await _dio.post(
         '${interfaces['userPlaylist']}',
         queryParameters: {'uid': _uid, 'timestamp': DateTime.now()});
